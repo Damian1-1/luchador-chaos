@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Luchador Chaos - Gra</title>
+<title>Luchador Chaos - Rozbudowana Gra</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,11 +11,11 @@
 <h1>Luchador Chaos</h1>
 <div id="board"></div>
 
-<div id="actions">
+<div id="info">
+  <h2>Aktualny gracz: <span id="current-player-name"></span></h2>
   <p>Wybierz kartę akcji:</p>
-  <button onclick="chooseAction('attack')">Atak</button>
-  <button onclick="chooseAction('push')">Wypychanie</button>
-  <button onclick="chooseAction('skip')">Pomiń turę</button>
+  <div id="action-cards"></div>
+  <button id="confirm-action" disabled>Potwierdź akcję</button>
 </div>
 
 <div id="log"></div>
