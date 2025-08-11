@@ -1,202 +1,62 @@
-/* Podstawowy layout planszy i pionków */
+code
 body {
-  font-family: 'Comic Sans MS', cursive, sans-serif;
-  background: #222;
-  color: #eee;
-  margin: 0; padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  user-select: none;
+"  font-family: Arial, sans-serif;"
+  background: #fff;
+  margin: 20px;
+  text-align: center;
 }
-
+""
 h1 {
-  margin: 1rem 0 0.5rem;
-  text-shadow: 2px 2px 5px #000;
+  margin-bottom: 10px;
 }
-
-#game-container {
-  display: flex;
-  flex-direction: row;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
+""
 #board {
   display: grid;
-  grid-template-columns: repeat(var(--board-size), 60px);
-  grid-template-rows: repeat(var(--board-size), 60px);
-  gap: 3px;
-  background: #333;
-  padding: 10px;
-  border-radius: 10px;
-  box-shadow: 0 0 15px #ff6347;
-  position: relative;
+"  grid-template-columns: repeat(5, 60px);"
+"  grid-template-rows: repeat(5, 60px);"
+  gap: 5px;
+  margin: 20px auto;
+  width: max-content;
 }
-
+""
 .cell {
-  width: 60px;
-  height: 60px;
-  background: #555;
-  border-radius: 8px;
-  box-shadow: inset 0 0 8px #000;
-  position: relative;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+  border: 2px solid #333;
+  background: #eee;
   display: flex;
-  justify-content: center;
   align-items: center;
-}
-
-.cell:hover {
-  background-color: #777;
-}
-
-.cell.trap {
-  background-color: #8B0000;
-  box-shadow: 0 0 10px #FF4500 inset;
-}
-
-.cell.bonus {
-  background-color: #006400;
-  box-shadow: 0 0 10px #00FF00 inset;
-}
-
-.cell.equipment {
-  background-color: #1E90FF;
-  box-shadow: 0 0 10px #00BFFF inset;
-}
-
-/* Pionki zawodników */
-.wrestler {
-  width: 45px;
-  height: 45px;
-  border-radius: 50%;
-  border: 3px solid white;
-  box-shadow: 0 0 8px #fff inset;
-  display: flex;
   justify-content: center;
-  align-items: center;
   font-weight: bold;
-  font-size: 1.5rem;
-  color: #fff;
-  user-select: none;
-  position: relative;
-  transition: transform 0.4s ease;
-}
-
-.wrestler.red { background: #d22; border-color: #ff8888; }
-.wrestler.blue { background: #228; border-color: #88bbff; }
-.wrestler.green { background: #2a2; border-color: #88ff88; }
-.wrestler.yellow { background: #aa6; border-color: #ffee88; }
-
-/* Animacje ruchu */
-@keyframes slideMove {
-  0% { transform: translate(0,0); }
-  100% { transform: translate(var(--dx), var(--dy)); }
-}
-
-@keyframes attackFlash {
-  0%, 100% { box-shadow: 0 0 15px 5px #fff inset; }
-  50% { box-shadow: 0 0 25px 12px #ff0 inset; }
-}
-
-/* Przy animacji ataku */
-.wrestler.attack {
-  animation: attackFlash 0.6s ease-in-out;
-}
-
-/* Panel z kartami i statystykami */
-#info-panel {
-  width: 280px;
-  background: #111;
-  border-radius: 10px;
-  padding: 15px;
-  box-shadow: 0 0 15px #0ff;
-  font-size: 0.9rem;
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-#info-panel h2 {
-  margin-top: 0;
-  color: #0ff;
-  text-align: center;
-  text-shadow: 0 0 4px #0ff;
-}
-
-.cards-container {
-  margin-top: 10px;
-}
-
-.card {
-  background: #222;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  padding: 10px;
-  box-shadow: 0 0 5px #0aa inset;
+  font-size: 20px;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.3s ease;
 }
-
-.card:hover {
-  background-color: #333;
+""
+.Z1 { background: #faa; }
+.Z2 { background: #aaf; }
+.Z3 { background: #afa; }
+.Z4 { background: #ffa; }
+.selected { outline: 3px solid red; }
+""
+#actions {
+  max-width: 320px;
+  margin: 10px auto;
+  text-align: center;
 }
-
-.card.disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-/* Buttony */
+""
 button {
-  margin-top: 15px;
-  width: 100%;
-  background: #0ff;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  padding: 10px;
+  margin: 5px;
+  padding: 10px 15px;
+  font-size: 16px;
   cursor: pointer;
-  box-shadow: 0 0 8px #0cc;
-  transition: background-color 0.3s ease;
 }
-
-button:hover {
-  background: #08c;
-  color: white;
-}
-
-/* Tooltip na komórkach */
-.tooltip {
-  position: absolute;
-  background: #111;
-  color: #eee;
-  padding: 5px 8px;
+""
+#log {
+  max-width: 320px;
+  margin: 10px auto;
+  background: #ddd;
+  padding: 10px;
+  height: 120px;
+  overflow-y: auto;
+  font-size: 14px;
   border-radius: 5px;
-  font-size: 0.75rem;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  z-index: 100;
-  max-width: 150px;
-  text-align: center;
-  user-select: none;
-}
-
-.cell:hover .tooltip {
-  opacity: 1;
-}
-
-/* Scroll bar panelu info */
-#info-panel::-webkit-scrollbar {
-  width: 8px;
-}
-#info-panel::-webkit-scrollbar-track {
-  background: #111;
-}
-#info-panel::-webkit-scrollbar-thumb {
-  background: #0ff;
-  border-radius: 4px;
 }
