@@ -1,194 +1,160 @@
-const boardSize = 5;
+const BOARD_SIZE = 7;
 
-// Plansza to tablica 5x5, puste pola to null, zawodnicy to obiekty
-let board = [];
-let players = {
-  Z1: { name: 'El Toro Fuerte', pos: { x: 2, y: 0 }, hp: 10 },
-  Z2: { name: 'La Sombra Veloz', pos: { x: 0, y: 2 }, hp: 8 },
-  Z3: { name: 'Gringo Loco', pos: { x: 4, y: 2 }, hp: 9 },
-  Z4: { name: 'Señor Martillo', pos: { x: 2, y: 4 }, hp: 12 },
+const playersData = {
+  Z1: {
+    name: 'El Toro Fuerte',
+    hp: 15,
+    pos: { x: 3, y: 0 },
+    finisher: 'Rage Bull',
+    colorClass: 'Z1',
+  },
+  Z2: {
+    name: 'La Sombra Veloz',
+    hp: 12,
+    pos: { x: 0, y: 3 },
+    finisher: 'Shadow Strike',
+    colorClass: 'Z2',
+  },
+  Z3: {
+    name: 'Gringo Loco',
+    hp: 14,
+    pos: { x: 6, y: 3 },
+    finisher: 'Crazy Spin',
+    colorClass: 'Z3',
+  },
+  Z4: {
+    name: 'Señor Martillo',
+    hp: 18,
+    pos: { x: 3, y: 6 },
+    finisher: 'Hammer Slam',
+    colorClass: 'Z4',
+  },
 };
-let currentPlayerKeys = Object.keys(players);
+
+const obstacles = [
+  { x: 2, y: 2 },
+  { x: 4, y: 2 },
+  { x: 2, y: 4 },
+  { x: 4, y: 4 },
+];
+
+const bonuses = [
+  { x: 3, y: 3, type: 'heal', value: 3 },
+];
+
+let board = [];
+let players = {};
+let currentPlayerOrder = [];
 let currentTurn = 0;
 let selectedAction = null;
-const logDiv = document.getElementById('log');
+let actionTarget = null;
 
-function log(msg) {
-  logDiv.innerHTML += msg + '<br>';
+const boardDiv = document.getElementById('board');
+const logDiv = document.getElementById('log');
+const actionCardsDiv = document.getElementById('action-cards');
+const confirmBtn = document.getElementById('confirm-action');
+const currentPlayerNameSpan = document.getElementById('current-player-name');
+
+function log(message) {
+  logDiv.innerHTML += message + '<br>';
   logDiv.scrollTop = logDiv.scrollHeight;
 }
 
 function initBoard() {
-  board = Array(boardSize)
+  board = Array(BOARD_SIZE)
     .fill(null)
-    .map(() => Array(boardSize).fill(null));
-  // Wstawiamy zawodników na planszę
-  for (let key in players) {
-    let p = players[key];
+    .map(() => Array(BOARD_SIZE).fill(null));
+
+  players = JSON.parse(JSON.stringify(playersData));
+  currentPlayerOrder = Object.keys(players);
+  currentTurn = 0;
+  selectedAction = null;
+  actionTarget = null;
+
+  // Place players on board
+  for (const key of currentPlayerOrder) {
+    const p = players[key];
     board[p.pos.y][p.pos.x] = key;
+  }
+  // Place obstacles
+  for (const o of obstacles) {
+    board[o.y][o.x] = 'obstacle';
+  }
+  // Place bonuses
+  for (const b of bonuses) {
+    board[b.y][b.x] = 'bonus';
   }
 }
 
 function renderBoard() {
-  const boardDiv = document.getElementById('board');
   boardDiv.innerHTML = '';
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      let cell = document.createElement('div');
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      const cell = document.createElement('div');
       cell.className = 'cell';
-      let val = board[y][x];
-      if (val) {
-        cell.textContent = val;
-        cell.classList.add(val);
+
+      const cellVal = board[y][x];
+      if (cellVal) {
+        if (cellVal.startsWith && cellVal.startsWith('Z')) {
+          cell.textContent = cellVal;
+          cell.classList.add(players[cellVal].colorClass);
+          cell.title = `${players[cellVal].name} (HP: ${players[cellVal].hp})`;
+        } else if (cellVal === 'obstacle') {
+          cell.classList.add('obstacle');
+          cell.textContent = '⛰️';
+          cell.title = 'Przeszkoda - nie można przejść';
+          cell.style.cursor = 'default';
+        } else if (cellVal === 'bonus') {
+          cell.classList.add('bonus');
+          cell.textContent = '❤️';
+          cell.title = 'Bonus zdrowia';
+        }
       }
       cell.dataset.x = x;
       cell.dataset.y = y;
+
       cell.onclick = () => cellClicked(x, y);
       boardDiv.appendChild(cell);
     }
   }
 }
 
+function getCurrentPlayerKey() {
+  return currentPlayerOrder[currentTurn];
+}
+
 function cellClicked(x, y) {
-  let currentKey = currentPlayerKeys[currentTurn];
-  let player = players[currentKey];
-  // ruch do pustego pola obok
-  let dist = Math.abs(player.pos.x - x) + Math.abs(player.pos.y - y);
-  if (dist === 1 && !board[y][x]) {
-    movePlayer(currentKey, x, y);
-    endTurn();
-  } else if (board[y][x] && board[y][x] !== currentKey && selectedAction) {
-    // Akcja na przeciwniku na polu sąsiednim
-    if (selectedAction === 'attack') {
-      attack(currentKey, board[y][x]);
-    } else if (selectedAction === 'push') {
-      push(currentKey, board[y][x]);
-    }
-    endTurn();
-  } else {
-    log('Nie można wykonać akcji na tym polu.');
+  const currentKey = getCurrentPlayerKey();
+  const player = players[currentKey];
+
+  if (!selectedAction) {
+    log('Wybierz kartę akcji najpierw.');
+    return;
   }
-}
 
-function movePlayer(key, x, y) {
-  let player = players[key];
-  log(
-    player.name +
-      ' porusza się z (' +
-      player.pos.x +
-      ',' +
-      player.pos.y +
-      ') na (' +
-      x +
-      ',' +
-      y +
-      ')'
-  );
-  board[player.pos.y][player.pos.x] = null;
-  board[y][x] = key;
-  player.pos.x = x;
-  player.pos.y = y;
-  renderBoard();
-}
+  const dist = Math.abs(player.pos.x - x) + Math.abs(player.pos.y - y);
+  const target = board[y][x];
 
-function attack(attackerKey, targetKey) {
-  let attacker = players[attackerKey];
-  let target = players[targetKey];
-  let damage = 2; // prosta zasada
-  target.hp -= damage;
-  log(
-    attacker.name +
-      ' atakuje ' +
-      target.name +
-      ' i zadaje ' +
-      damage +
-      ' obrażeń. HP ' +
-      target.name +
-      ': ' +
-      target.hp
-  );
-  if (target.hp <= 0) {
-    log(target.name + ' został wyeliminowany!');
-    // Usuwamy z planszy i z listy
-    board[target.pos.y][target.pos.x] = null;
-    delete players[targetKey];
-    currentPlayerKeys = Object.keys(players);
-    renderBoard();
-    if (currentPlayerKeys.length === 1) {
-      alert(currentPlayerKeys[0] + ' wygrywa grę!');
-      location.reload();
-    }
-  }
-}
-
-function push(attackerKey, targetKey) {
-  let attacker = players[attackerKey];
-  let target = players[targetKey];
-  // Próba wypchnięcia przeciwnika na pole za nim, jeśli wolne i w planszy
-  let dx = target.pos.x - attacker.pos.x;
-  let dy = target.pos.y - attacker.pos.y;
-  let newX = target.pos.x + dx;
-  let newY = target.pos.y + dy;
-  if (
-    newX >= 0 &&
-    newX < boardSize &&
-    newY >= 0 &&
-    newY < boardSize &&
-    !board[newY][newX]
-  ) {
-    log(
-      attacker.name +
-        ' wypycha ' +
-        target.name +
-        ' na pole (' +
-        newX +
-        ',' +
-        newY +
-        ')'
-    );
-    board[target.pos.y][target.pos.x] = null;
-    board[newY][newX] = targetKey;
-    target.pos.x = newX;
-    target.pos.y = newY;
-    // Sprawdź czy wypchnięty poza planszę (na krawędź)
-    if (
-      newX === 0 ||
-      newX === boardSize - 1 ||
-      newY === 0 ||
-      newY === boardSize - 1
-    ) {
-      log(target.name + ' został wypchnięty z ringu i wyeliminowany!');
-      board[newY][newX] = null;
-      delete players[targetKey];
-      currentPlayerKeys = Object.keys(players);
-      renderBoard();
-      if (currentPlayerKeys.length === 1) {
-        alert(currentPlayerKeys[0] + ' wygrywa grę!');
-        location.reload();
-      }
+  if (selectedAction === 'move') {
+    if (dist === 1 && !target) {
+      movePlayer(currentKey, x, y);
+      confirmBtn.disabled = false;
+      actionTarget = { x, y };
     } else {
-      renderBoard();
+      log('Ruch możliwy tylko na sąsiednie puste pole.');
     }
-  } else {
-    log('Nie można wypchnąć przeciwnika na to pole.');
-  }
-}
-
-function chooseAction(action) {
-  selectedAction = action;
-  log('Wybrano akcję: ' + action);
-}
-
-function endTurn() {
-  selectedAction = null;
-  currentTurn = (currentTurn + 1) % currentPlayerKeys.length;
-  log('Tura gracza: ' + players[currentPlayerKeys[currentTurn]].name);
-}
-
-function startGame() {
-  initBoard();
-  renderBoard();
-  log('Tura gracza: ' + players[currentPlayerKeys[currentTurn]].name);
-}
-
-startGame();
+  } else if (selectedAction === 'attack') {
+    if (dist === 1 && target && target.startsWith && target.startsWith('Z') && target !== currentKey) {
+      actionTarget = { x, y };
+      confirmBtn.disabled = false;
+      log(`Atak na ${players[target].name} wybrany.`);
+    } else {
+      log('Atak możliwy tylko na sąsiadującego przeciwnika.');
+    }
+  } else if (selectedAction === 'push') {
+    if (dist === 1 && target && target.startsWith && target.startsWith('Z') && target !== currentKey) {
+      actionTarget = { x, y };
+      confirmBtn.disabled = false;
+      log(`Wypychanie ${players[target].name} wybrane.`);
+    } else {
+      log('
