@@ -1,24 +1,26 @@
+code
 <!DOCTYPE html>
-<html lang="pl">
+"<html lang=""pl"">"
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Zapaśnicy: Rozbudowana Gra Planszowa</title>
-<link rel="stylesheet" href="style.css" />
+"<meta charset=""UTF-8"" />"
+"<meta name=""viewport"" content=""width=device-width, initial-scale=1"" />"
+<title>Luchador Chaos - Gra</title>
+"<link rel=""stylesheet"" href=""style.css"" />"
 </head>
 <body>
-  <h1>Zapaśnicy: Rozbudowana Gra Planszowa</h1>
-  <div id="game-info"></div>
-  <div id="board"></div>
-  <div id="players-info"></div>
-  <div id="inventory"></div>
-  <div id="log"></div>
-
-  <button id="next-turn">Następna tura</button>
-  <button id="save-game">Zapisz grę</button>
-  <button id="load-game">Wczytaj grę</button>
-  <button id="new-game">Nowa gra</button>
-
-  <script src="script.js"></script>
+""
+<h1>Luchador Chaos</h1>
+"<div id=""board""></div>"
+""
+"<div id=""actions"">"
+  <p>Wybierz kartę akcji:</p>
+"  <button onclick=""chooseAction('attack')"">Atak</button>"
+"  <button onclick=""chooseAction('push')"">Wypychanie</button>"
+"  <button onclick=""chooseAction('skip')"">Pomiń turę</button>"
+</div>
+""
+"<div id=""log""></div>"
+""
+"<script src=""script.js""></script>"
 </body>
 </html>
