@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8" />
-<title>Turowa gra wrestlingowa</title>
+<title>Turowa gra wrestlingowa z drag&drop i atakiem</title>
 <style>
   #board {
     display: grid;
@@ -10,6 +10,7 @@
     grid-template-rows: repeat(6, 60px);
     gap: 3px;
     margin-bottom: 15px;
+    user-select: none;
   }
   .cell {
     width: 60px;
@@ -17,6 +18,12 @@
     background-color: #eee;
     border: 1px solid #ccc;
     position: relative;
+  }
+  .cell.highlight-move {
+    background-color: #bdf !important;
+  }
+  .cell.highlight-attack {
+    background-color: #fbb !important;
   }
   .cell .wrestler {
     width: 56px;
@@ -30,6 +37,14 @@
     color: white;
     font-weight: bold;
     user-select: none;
+    cursor: grab;
+  }
+  .cell .wrestler.selected {
+    outline: 3px solid #ff0;
+  }
+  .cell .wrestler.enemy {
+    background-color: #a22;
+    cursor: pointer;
   }
   .cell .wrestler.attack {
     animation: attackAnim 0.8s;
@@ -41,7 +56,7 @@
   #info-panel {
     border: 1px solid #ccc;
     padding: 10px;
-    max-width: 370px;
+    max-width: 400px;
     background: #f9f9f9;
   }
   .cards-container {
@@ -59,6 +74,10 @@
     cursor: pointer;
     user-select: none;
   }
+  .card.selected {
+    background-color: #48a !important;
+    color: white;
+  }
   button {
     margin: 5px 4px 5px 0;
     padding: 6px 12px;
@@ -66,75 +85,50 @@
 </style>
 </head>
 <body>
-<h2>Turowa gra wrestlingowa (demo)</h2>
+<h2>Turowa gra wrestlingowa z drag&drop i atakiem</h2>
 <div id="board"></div>
 <div id="info-panel"></div>
 
 <script>
-  // --- STAN GRY ---
   const BOARD_SIZE = 6;
-
   let gameState = {
     board: [],
     wrestlers: [],
     currentPlayerIndex: 0,
     turn: 1,
-    selectedCard: null,
-    selectedTarget: null,
+    selectedCardIndex: null,
+    selectedTarget: null, // cel ataku
+    dragSource: null,
     animationLock: false,
   };
 
-  // --- KARTY ---
   const ACTION_CARDS = [
     {
       id: 1,
       name: 'Ruch',
       type: 'move',
-      description: 'Przesuń zawodnika o 2 pola w dowolnym kierunku.',
-      effect: (wrestler) => {
-        // ruch wykonany w useSelectedCard
-        return `${wrestler.name} przesuwa się o 2 pola.`;
-      }
+      description: 'Przesuń zawodnika o 2 pola w dowolnym kierunku (drag&drop).',
     },
     {
       id: 2,
       name: 'Atak',
       type: 'attack',
-      description: 'Zadaj 2 obrażenia przeciwnikowi w zasięgu 1 pola.',
-      effect: (attacker, target) => {
-        target.hp -= 2;
-        if(target.hp <= 0) {
-          target.isAlive = false;
-        }
-        return `${attacker.name} atakuje ${target.name} i zadaje 2 obrażeń.`;
-      }
+      description: 'Kliknij przeciwnika w zasięgu 1 pola, potem użyj karty, by zaatakować.',
     },
     {
       id: 3,
       name: 'Obrona',
       type: 'defend',
-      description: 'Zwiększ obronę o 2 na tę turę.',
-      effect: (wrestler) => {
-        wrestler.defense += 2;
-        return `${wrestler.name} wzmacnia obronę o 2 na tę turę.`;
-      }
+      description: 'Zwiększ obronę o 2 na tę turę (działa od razu po użyciu).',
     },
     {
       id: 4,
       name: 'Specjalny cios',
       type: 'special',
       description: 'Zadaj 4 obrażenia przeciwnikowi w zasięgu 1 pola.',
-      effect: (attacker, target) => {
-        target.hp -= 4;
-        if(target.hp <= 0) {
-          target.isAlive = false;
-        }
-        return `${attacker.name} wykonuje specjalny cios na ${target.name} i zadaje 4 obrażeń.`;
-      }
     }
   ];
 
-  // --- INICJALIZACJA PLANSZY ---
   function initBoard() {
     gameState.board = [];
     for(let y=0; y<BOARD_SIZE; y++) {
@@ -146,7 +140,6 @@
     }
   }
 
-  // --- INICJALIZACJA ZAWODNIKÓW ---
   function initWrestlers() {
     gameState.wrestlers = [
       { id: 1, name: 'Gracz1', hp: 10, defense: 0, isAlive: true, position: {x: 0, y: 0}, hand: [], equipment: [] },
@@ -154,7 +147,6 @@
     ];
   }
 
-  // --- RYSOWANIE PLANSZY ---
   function renderBoard() {
     const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
@@ -170,12 +162,61 @@
           const wEl = document.createElement('div');
           wEl.className = 'wrestler';
           wEl.textContent = wrestlerHere.name[0];
+
+          // Kolor w zależności od gracza
           if(gameState.currentPlayerIndex === gameState.wrestlers.indexOf(wrestlerHere)) {
             wEl.style.backgroundColor = '#2a7';
+            wEl.setAttribute('draggable', 'true');
           } else {
             wEl.style.backgroundColor = '#a22';
+            wEl.classList.add('enemy');
           }
+
+          // Zaznaczony atakujący zawodnik
+          if(gameState.dragSource === wrestlerHere) {
+            wEl.classList.add('selected');
+          }
+
+          // Klikalność przeciwnika jeśli karta ataku wybrana i w zasięgu
+          if(gameState.selectedCardIndex !== null) {
+            const card = gameState.wrestlers[gameState.currentPlayerIndex].hand[gameState.selectedCardIndex];
+            if(card.type === 'attack' || card.type === 'special') {
+              const attacker = gameState.wrestlers[gameState.currentPlayerIndex];
+              if(wrestlerHere !== attacker && distance(attacker.position, wrestlerHere.position) <= 1) {
+                wEl.style.cursor = 'pointer';
+                wEl.onclick = () => {
+                  if(gameState.animationLock) return;
+                  gameState.selectedTarget = wrestlerHere;
+                  renderInfoPanel();
+                };
+                if(gameState.selectedTarget === wrestlerHere) {
+                  wEl.style.outline = '3px solid yellow';
+                } else {
+                  wEl.style.outline = '';
+                }
+              }
+            }
+          }
+
+          // Obsługa drag & drop
+          if(gameState.currentPlayerIndex === gameState.wrestlers.indexOf(wrestlerHere)) {
+            wEl.addEventListener('dragstart', onDragStart);
+          }
+
           cell.appendChild(wEl);
+        }
+
+        // Highlighty do ruchu
+        if(gameState.selectedCardIndex !== null) {
+          const card = gameState.wrestlers[gameState.currentPlayerIndex].hand[gameState.selectedCardIndex];
+          const currentWrestler = gameState.wrestlers[gameState.currentPlayerIndex];
+          if(card.type === 'move') {
+            if(distance({x, y}, currentWrestler.position) <= 2 && !cellHasWrestler(x,y)) {
+              cell.classList.add('highlight-move');
+              cell.addEventListener('dragover', onDragOver);
+              cell.addEventListener('drop', onDrop);
+            }
+          }
         }
 
         boardEl.appendChild(cell);
@@ -183,293 +224,254 @@
     }
   }
 
-  // --- RYSOWANIE PANELU INFORMACJI ---
-  function renderInfoPanel() {
-    const infoPanel = document.getElementById('info-panel');
-    infoPanel.innerHTML = '';
-    const currentWrestler = gameState.wrestlers[gameState.currentPlayerIndex];
-    if(!currentWrestler.isAlive) {
-      addGameMessage("Twój zawodnik został wyeliminowany, przejdź dalej.");
+  function cellHasWrestler(x, y) {
+    return gameState.wrestlers.some(w => w.isAlive && w.position.x === x && w.position.y === y);
+  }
+
+  function onDragStart(ev) {
+    if(gameState.animationLock) {
+      ev.preventDefault();
       return;
     }
+    const x = +ev.target.parentElement.dataset.x;
+    const y = +ev.target.parentElement.dataset.y;
+    const wrestler = gameState.wrestlers.find(w => w.position.x === x && w.position.y === y);
+    if(!wrestler || gameState.wrestlers[gameState.currentPlayerIndex] !== wrestler) {
+      ev.preventDefault();
+      return;
+    }
+    const card = gameState.wrestlers[gameState.currentPlayerIndex].hand[gameState.selectedCardIndex];
+    if(!card || card.type !== 'move') {
+      ev.preventDefault();
+      alert('Wybierz kartę ruchu, żeby przeciągać zawodnika.');
+      return;
+    }
+    gameState.dragSource = wrestler;
+    ev.dataTransfer.setData('text/plain', JSON.stringify({x, y}));
+  }
 
-    const stats = document.createElement('div');
-    stats.innerHTML = `
-      <b>Gracz:</b> ${currentWrestler.name} <br>
-      <b>HP:</b> ${currentWrestler.hp} <br>
-      <b>Obrona:</b> ${currentWrestler.defense} <br>
-      <b>Pozycja:</b> (${currentWrestler.position.x}, ${currentWrestler.position.y}) <br>
-      <b>Ręka kart:</b> ${currentWrestler.hand.map(e => e.name).join(', ') || "Brak"} <br>
-    `;
-    infoPanel.appendChild(stats);
+  function onDragOver(ev) {
+    ev.preventDefault();
+  }
 
-    // Karty
-    const cardsDiv = document.createElement('div');
-    cardsDiv.className = 'cards-container';
+  function onDrop(ev) {
+    ev.preventDefault();
+    if(gameState.animationLock) return;
+    const targetX = +ev.target.dataset.x;
+    const targetY = +ev.target.dataset.y;
+    const sourcePos = gameState.dragSource.position;
+    if(distance(sourcePos, {x: targetX, y: targetY}) > 2) {
+      alert('Możesz się przesunąć max o 2 pola.');
+      return;
+    }
+    if(cellHasWrestler(targetX, targetY)) {
+      alert('To pole jest zajęte.');
+      return;
+    }
+    // Przesuń zawodnika
+    gameState.dragSource.position = {x: targetX, y: targetY};
+    gameState.selectedCardIndex = null; // karta zużyta
+    gameState.dragSource = null;
+    gameState.selectedTarget = null;
+    renderAll();
+  }
 
-    currentWrestler.hand.forEach((card, idx) => {
-      const cardDiv = document.createElement('div');
-      cardDiv.className = 'card';
-      if(gameState.selectedCard === idx) cardDiv.style.backgroundColor = '#044';
-      cardDiv.innerHTML = `<b>${card.name}</b><br><small>${card.description}</small>`;
-      cardDiv.onclick = () => {
+  function distance(p1, p2) {
+    return Math.max(Math.abs(p1.x - p2.x), Math.abs(p1.y - p2.y));
+  }
+
+  function renderCards() {
+    const panel = document.getElementById('info-panel');
+    const player = gameState.wrestlers[gameState.currentPlayerIndex];
+    let html = `<b>Tura: ${gameState.turn} | Gracz: ${player.name}</b><br>HP: ${player.hp} | Obrona: ${player.defense}<br><br>`;
+    html += 'Karty (kliknij, by wybrać):<br><div class="cards-container">';
+    player.hand.forEach((card, i) => {
+      html += `<div class="card${gameState.selectedCardIndex === i ? ' selected' : ''}" data-index="${i}">${card.name}<br><small>${card.description}</small></div>`;
+    });
+    html += '</div>';
+    html += `<button id="use-card" disabled>Użyj karty</button> `;
+    html += `<button id="end-turn">Zakończ turę</button>`;
+
+    panel.innerHTML = html;
+
+    // Karty - klik
+    const cardsEls = panel.querySelectorAll('.card');
+    cardsEls.forEach(el => {
+      el.onclick = () => {
         if(gameState.animationLock) return;
-        gameState.selectedCard = idx;
-        gameState.selectedTarget = null;
-        renderInfoPanel();
+        const idx = +el.dataset.index;
+        if(gameState.selectedCardIndex === idx) {
+          gameState.selectedCardIndex = null;
+          gameState.selectedTarget = null;
+        } else {
+          gameState.selectedCardIndex = idx;
+          gameState.selectedTarget = null;
+          gameState.dragSource = null;
+        }
+        renderAll();
       };
-      cardsDiv.appendChild(cardDiv);
     });
-    infoPanel.appendChild(cardsDiv);
 
-    // Przyciski
-    const btnUse = document.createElement('button');
-    btnUse.textContent = 'Użyj karty';
-    btnUse.onclick = useSelectedCard;
-    btnUse.disabled = gameState.selectedCard === null || gameState.animationLock;
-    infoPanel.appendChild(btnUse);
+    // Przycisk użycia karty
+    const useBtn = document.getElementById('use-card');
+    useBtn.disabled = (gameState.selectedCardIndex === null);
 
-    const btnEndTurn = document.createElement('button');
-    btnEndTurn.textContent = 'Zakończ turę';
-    btnEndTurn.onclick = nextTurn;
-    btnEndTurn.disabled = gameState.animationLock;
-    infoPanel.appendChild(btnEndTurn);
-
-    // Zapis i wczytanie
-    const btnSave = document.createElement('button');
-    btnSave.textContent = 'Zapisz grę';
-    btnSave.onclick = saveGame;
-    infoPanel.appendChild(btnSave);
-
-    const btnLoad = document.createElement('button');
-    btnLoad.textContent = 'Wczytaj grę';
-    btnLoad.onclick = loadGame;
-    infoPanel.appendChild(btnLoad);
-
-    // Komunikaty z gry
-    const messagesDiv = document.createElement('div');
-    messagesDiv.id = 'game-messages';
-    infoPanel.appendChild(messagesDiv);
-  }
-
-  // --- KOMUNIKATY GRY ---
-  function addGameMessage(text) {
-    const messagesDiv = document.getElementById('game-messages');
-    if(!messagesDiv) return;
-    const p = document.createElement('p');
-    p.textContent = text;
-    messagesDiv.prepend(p);
-    if(messagesDiv.childNodes.length > 6) {
-      messagesDiv.removeChild(messagesDiv.lastChild);
-    }
-  }
-
-  // --- UŻYWANIE KARTY ---
-  function useSelectedCard() {
-    if(gameState.selectedCard === null) {
-      addGameMessage("Wybierz kartę.");
-      return;
-    }
-    if(gameState.animationLock) return;
-
-    const currentWrestler = gameState.wrestlers[gameState.currentPlayerIndex];
-    const card = currentWrestler.hand[gameState.selectedCard];
-
-    // Dla kart ataku wybieramy cel
-    if(card.type === 'attack' || card.type === 'special') {
-      addGameMessage("Kliknij na przeciwnika, aby go zaatakować.");
-      // Tutaj można dodać mechanizm wyboru celu na planszy, uprościmy dla demo:
-      simpleAIUseCard(card, currentWrestler);
-    } else if(card.type === 'move') {
-      // Ruch automatyczny - przesunięcie o 2 pola w prawo, lub na planszy jeśli nie można
-      const oldPos = {...currentWrestler.position};
-      currentWrestler.position = moveTowards(currentWrestler.position, 2);
-      animateMove(currentWrestler, oldPos, currentWrestler.position);
-      addGameMessage(card.effect(currentWrestler));
-    } else if(card.type === 'defend') {
-      addGameMessage(card.effect(currentWrestler));
-    }
-
-    // Usuwamy kartę z ręki
-    currentWrestler.hand.splice(gameState.selectedCard, 1);
-    gameState.selectedCard = null;
-    renderInfoPanel();
-    renderBoard();
-  }
-
-  // --- RUCH - proste przesunięcie w prawo lub w dół jeśli koniec planszy ---
-  function moveTowards(pos, steps) {
-    let x = pos.x + steps;
-    let y = pos.y;
-    if(x >= BOARD_SIZE) {
-      y = y + 1;
-      x = x - BOARD_SIZE;
-      if(y >= BOARD_SIZE) y = BOARD_SIZE - 1;
-    }
-    return {x, y};
-  }
-
-  // --- ANIMACJE RUCHU ---
-  function animateMove(wrestler, from, to) {
-    gameState.animationLock = true;
-    const boardEl = document.getElementById('board');
-    const cells = boardEl.querySelectorAll('.cell');
-    let fromCell = null;
-    let wEl = null;
-    cells.forEach(cell => {
-      if(+cell.dataset.x === from.x && +cell.dataset.y === from.y) {
-        fromCell = cell;
+    // Aktywacja przycisku tylko gdy jest cel jeśli trzeba
+    if(gameState.selectedCardIndex !== null) {
+      const card = player.hand[gameState.selectedCardIndex];
+      if((card.type === 'attack' || card.type === 'special') && !gameState.selectedTarget) {
+        useBtn.disabled = true;
       }
-    });
-    if(!fromCell) {
-      gameState.animationLock = false;
-      return;
     }
-    wEl = fromCell.querySelector('.wrestler');
-    if(!wEl) {
-      gameState.animationLock = false;
-      return;
-    }
-    const dx = (to.x - from.x) * 63;
-    const dy = (to.y - from.y) * 63;
-    wEl.style.transition = 'transform 0.6s ease';
-    wEl.style.transform = `translate(${dx}px, ${dy}px)`;
 
-    setTimeout(() => {
-      wEl.style.transition = '';
-      wEl.style.transform = '';
-      renderBoard();
-      gameState.animationLock = false;
-    }, 650);
+    useBtn.onclick = () => {
+      if(gameState.animationLock) return;
+      playCard();
+    };
+
+    // Koniec tury
+    document.getElementById('end-turn').onclick = () => {
+      if(gameState.animationLock) return;
+      nextTurn();
+    };
   }
 
-  // --- PROSTE AI (dla demo) ---
-  function simpleAIUseCard(card, wrestler) {
-    let targets = gameState.wrestlers.filter(w => w.isAlive && w.id !== wrestler.id);
-    targets = targets.filter(t => distance(wrestler.position, t.position) <= 1);
+  function playCard() {
+    const player = gameState.wrestlers[gameState.currentPlayerIndex];
+    const card = player.hand[gameState.selectedCardIndex];
+    if(!card) return;
 
-    if(targets.length > 0 && (card.type === 'attack' || card.type === 'special')) {
-      const target = targets[0];
-      const msg = card.effect(wrestler, target);
-      animateAttack(wrestler, target);
-      addGameMessage(msg);
-      renderBoard();
-      renderInfoPanel();
+    switch(card.type) {
+      case 'move':
+        alert('Ruch wykonany przeciągnięciem. Wybierz inną kartę lub zakończ turę.');
+        break;
+
+      case 'attack':
+        if(!gameState.selectedTarget) {
+          alert('Wybierz przeciwnika do ataku.');
+          return;
+        }
+        attack(player, gameState.selectedTarget, 2);
+        break;
+
+      case 'defend':
+        player.defense += 2;
+        alert(`${player.name} podnosi obronę o 2!`);
+        break;
+
+      case 'special':
+        if(!gameState.selectedTarget) {
+          alert('Wybierz przeciwnika do specjalnego ataku.');
+          return;
+        }
+        attack(player, gameState.selectedTarget, 4);
+        break;
+    }
+    // Usuwamy kartę z ręki po użyciu
+    player.hand.splice(gameState.selectedCardIndex, 1);
+    gameState.selectedCardIndex = null;
+    gameState.selectedTarget = null;
+    renderAll();
+  }
+
+  function attack(attacker, defender, damage) {
+    gameState.animationLock = true;
+    const defenderEl = [...document.querySelectorAll('.wrestler.enemy')]
+      .find(el => {
+        const x = +el.parentElement.dataset.x;
+        const y = +el.parentElement.dataset.y;
+        return defender.position.x === x && defender.position.y === y;
+      });
+
+    if(defenderEl) {
+      defenderEl.classList.add('attack');
+      setTimeout(() => {
+        defenderEl.classList.remove('attack');
+        let actualDamage = Math.max(0, damage - defender.defense);
+        defender.hp -= actualDamage;
+        if(defender.hp <= 0) {
+          defender.isAlive = false;
+          alert(`${defender.name} został pokonany!`);
+        } else {
+          alert(`${attacker.name} zadał ${actualDamage} obrażeń ${defender.name}.`);
+        }
+        gameState.animationLock = false;
+        renderAll();
+      }, 800);
     } else {
-      addGameMessage("Brak celów w zasięgu ataku. Karta stracona.");
+      // Nie znaleziono elementu, wykonujemy od razu
+      let actualDamage = Math.max(0, damage - defender.defense);
+      defender.hp -= actualDamage;
+      if(defender.hp <= 0) {
+        defender.isAlive = false;
+        alert(`${defender.name} został pokonany!`);
+      } else {
+        alert(`${attacker.name} zadał ${actualDamage} obrażeń ${defender.name}.`);
+      }
+      gameState.animationLock = false;
+      renderAll();
     }
   }
 
-  // --- ANIMACJA ATAKU ---
-  function animateAttack(attacker, target) {
-    gameState.animationLock = true;
-    const boardEl = document.getElementById('board');
-    let attackerEl, targetEl;
-    const cells = boardEl.querySelectorAll('.cell');
-    cells.forEach(cell => {
-      if(+cell.dataset.x === attacker.position.x && +cell.dataset.y === attacker.position.y) {
-        attackerEl = cell.querySelector('.wrestler');
-      }
-      if(+cell.dataset.x === target.position.x && +cell.dataset.y === target.position.y) {
-        targetEl = cell.querySelector('.wrestler');
-      }
-    });
-    if(!attackerEl || !targetEl) {
-      gameState.animationLock = false;
-      return;
-    }
-    attackerEl.classList.add('attack');
-
-    setTimeout(() => {
-      attackerEl.classList.remove('attack');
-      if(!target.isAlive) {
-        addGameMessage(`${target.name} został wyeliminowany!`);
-      }
-      renderBoard();
-      renderInfoPanel();
-      gameState.animationLock = false;
-    }, 800);
-  }
-
-  // --- ODLEGŁOŚĆ ---
-  function distance(pos1, pos2) {
-    return Math.max(Math.abs(pos1.x - pos2.x), Math.abs(pos1.y - pos2.y));
-  }
-
-  // --- KOLEJKA ---
   function nextTurn() {
-    if(gameState.animationLock) return;
-    gameState.currentPlayerIndex++;
-    if(gameState.currentPlayerIndex >= gameState.wrestlers.length) {
-      gameState.currentPlayerIndex = 0;
+    // Reset obrony na koniec tury
+    gameState.wrestlers.forEach(w => {
+      w.defense = 0;
+    });
+
+    // Przełącz gracza
+    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.wrestlers.length;
+
+    // Nowa tura?
+    if(gameState.currentPlayerIndex === 0) {
       gameState.turn++;
     }
-    while(!gameState.wrestlers[gameState.currentPlayerIndex].isAlive) {
-      gameState.currentPlayerIndex++;
-      if(gameState.currentPlayerIndex >= gameState.wrestlers.length) {
-        gameState.currentPlayerIndex = 0;
-        gameState.turn++;
+
+    // Dodaj nowe karty do ręki (losowo)
+    const player = gameState.wrestlers[gameState.currentPlayerIndex];
+    if(player.isAlive) {
+      while(player.hand.length < 3) {
+        const newCard = ACTION_CARDS[Math.floor(Math.random()*ACTION_CARDS.length)];
+        player.hand.push({...newCard});
       }
     }
-    drawCards(gameState.wrestlers[gameState.currentPlayerIndex]);
-    gameState.selectedCard = null;
+
+    gameState.selectedCardIndex = null;
     gameState.selectedTarget = null;
+    gameState.dragSource = null;
+    renderAll();
+  }
+
+  function renderInfoPanel() {
+    renderCards();
+  }
+
+  function renderAll() {
     renderBoard();
     renderInfoPanel();
-    addGameMessage(`Tura gracza ${gameState.wrestlers[gameState.currentPlayerIndex].name}.`);
   }
 
-  // --- ROZDAWANIE KART ---
-  function drawCards(wrestler) {
-    wrestler.hand = [];
-    // Prosto losujemy po 2 karty z akcji
-    for(let i=0; i<2; i++) {
-      const card = ACTION_CARDS[Math.floor(Math.random()*ACTION_CARDS.length)];
-      wrestler.hand.push(card);
-    }
-  }
-
-  // --- ZAPIS I WCZYTANIE ---
-  function saveGame() {
-    const data = JSON.stringify(gameState, (key, value) => {
-      if(typeof value === 'function') return undefined;
-      return value;
-    });
-    localStorage.setItem('wrestlingGameSave', data);
-    addGameMessage("Gra zapisana.");
-  }
-
-  function loadGame() {
-    const data = localStorage.getItem('wrestlingGameSave');
-    if(!data) {
-      addGameMessage("Brak zapisu gry.");
-      return;
-    }
-    const loaded = JSON.parse(data);
-    Object.assign(gameState, loaded);
-
-    // Przywróć karty z efektami
-    for(const w of gameState.wrestlers) {
-      w.hand = w.hand.map(c => ACTION_CARDS.find(ac => ac.id === c.id) || c);
-    }
-    renderBoard();
-    renderInfoPanel();
-    addGameMessage("Gra wczytana.");
-  }
-
-  // --- START ---
   function startGame() {
     initBoard();
     initWrestlers();
+    // Na start 3 karty dla każdego
+    gameState.wrestlers.forEach(w => {
+      w.hand = [];
+      while(w.hand.length < 3) {
+        const newCard = ACTION_CARDS[Math.floor(Math.random()*ACTION_CARDS.length)];
+        w.hand.push({...newCard});
+      }
+    });
     gameState.currentPlayerIndex = 0;
     gameState.turn = 1;
-    drawCards(gameState.wrestlers[0]);
-    renderBoard();
-    renderInfoPanel();
-    addGameMessage("Gra rozpoczęta.");
+    gameState.selectedCardIndex = null;
+    gameState.selectedTarget = null;
+    gameState.dragSource = null;
+    renderAll();
   }
 
   startGame();
+
 </script>
 </body>
 </html>
