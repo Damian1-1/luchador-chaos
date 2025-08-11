@@ -3,43 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Luchador Chaos - Mega Rozbudowana Gra</title>
+<title>Zapaśnicy: Rozbudowana Gra Planszowa</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <h1>Zapaśnicy: Rozbudowana Gra Planszowa</h1>
+  <div id="game-info"></div>
+  <div id="board"></div>
+  <div id="players-info"></div>
+  <div id="inventory"></div>
+  <div id="log"></div>
 
-<header>
-  <h1>Luchador Chaos 🔥</h1>
-  <div id="hud">
-    <div id="players-stats"></div>
-    <div id="turn-info">
-      <b>Aktualny gracz:</b> <span id="current-player-name"></span> |
-      <b>Tura:</b> <span id="turn-number">1</span> |
-      <button id="fullscreen-btn" title="Pełny ekran">⛶</button>
-    </div>
-  </div>
-</header>
+  <button id="next-turn">Następna tura</button>
+  <button id="save-game">Zapisz grę</button>
+  <button id="load-game">Wczytaj grę</button>
+  <button id="new-game">Nowa gra</button>
 
-<main>
-  <div id="board" tabindex="0" aria-label="Plansza gry"></div>
-
-  <section id="actions-panel">
-    <h2>Twoje karty akcji</h2>
-    <div id="action-cards"></div>
-    <button id="confirm-action" disabled>Potwierdź akcję</button>
-  </section>
-
-  <section id="log-section">
-    <h2>Log zdarzeń</h2>
-    <div id="log" aria-live="polite" aria-atomic="false"></div>
-  </section>
-</main>
-
-<footer>
-  <small>© 2025 Luchador Chaos by ChatGPT</small>
-</footer>
-
-<script src="script.js" defer></script>
-
+  <script src="script.js"></script>
 </body>
 </html>
