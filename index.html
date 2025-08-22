@@ -346,16 +346,8 @@
 
         startBtn.addEventListener('click', () => {
             if (selectedCharacter) {
-                // Upewnij się, że dane są pobierane z atrybutów DOM, a nie ze statycznej tablicy
-                const characterData = {
-                    name: selectedCharacter.getAttribute('data-character'),
-                    symbol: selectedCharacter.getAttribute('data-symbol'),
-                    stats: {
-                        s: parseInt(selectedCharacter.getAttribute('data-strength')),
-                        z: parseInt(selectedCharacter.getAttribute('data-agility')),
-                        w: parseInt(selectedCharacter.getAttribute('data-endurance'))
-                    }
-                };
+                const characterName = selectedCharacter.getAttribute('data-character');
+                const characterData = CHARACTERS.find(c => c.name === characterName);
                 player = characterData;
                 
                 characterSelectionContainer.classList.add('hidden');
