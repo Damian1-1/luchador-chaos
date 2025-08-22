@@ -9,6 +9,19 @@
         body {
             min-height: 100vh;
         }
+        .character-card {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .character-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .character-card.selected {
+            border-color: #FACC15; /* yellow-400 */
+            box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+            transform: scale(1.03);
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
@@ -23,124 +36,83 @@
         </header>
 
         <main class="py-12">
-            <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Zawodnicy</h2>
+            <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Wybierz swojego zawodnika</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div id="character-selection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 
-                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fantasma">
                     <h3 class="text-3xl font-bold text-yellow-300">El Fantasma</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 5 | W: 2</p>
                     <p class="mt-4 text-gray-300">
                         Zwinny i szybki, potrafi poruszać się przez pola zajęte przez innych graczy.
                     </p>
-                    <div id="fantasma-details" class="hidden mt-4 pt-4 border-t border-gray-700">
-                        <p class="text-gray-400 text-sm italic">
-                            El Fantasma to mistrz uniku. Jego ruchy są płynne jak cień. Posiada karty ataku zwinnościowego i potężny finisher, który pozwala mu wypchnąć przeciwnika z dowolnej odległości.
-                        </p>
-                    </div>
-                    <div class="mt-4 text-right">
-                        <button data-target="fantasma-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
-                            Więcej
-                        </button>
-                    </div>
                 </div>
 
-                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="Big Toro">
                     <h3 class="text-3xl font-bold text-red-500">Big Toro</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 6 | Z: 1 | W: 4</p>
                     <p class="mt-4 text-gray-300">
                         Powolny, ale niezwykle potężny. Po udanym ataku zyskuje +1 siły w następnej turze.
                     </p>
-                    <div id="toro-details" class="hidden mt-4 pt-4 border-t border-gray-700">
-                        <p class="text-gray-400 text-sm italic">
-                            Big Toro to siła natury. Jego ataki są powolne, ale zabójcze. Wymaga strategicznego podejścia, by jego siła mogła naprawdę błyszczeć.
-                        </p>
-                    </div>
-                    <div class="mt-4 text-right">
-                        <button data-target="toro-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
-                            Więcej
-                        </button>
-                    </div>
                 </div>
 
-                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="La Serpiente">
                     <h3 class="text-3xl font-bold text-green-500">La Serpiente</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 4 | W: 3</p>
                     <p class="mt-4 text-gray-300">
                         Zrównoważona i przebiegła. Po udanej obronie może zagrać kontratak.
                     </p>
-                    <div id="serpiente-details" class="hidden mt-4 pt-4 border-t border-gray-700">
-                        <p class="text-gray-400 text-sm italic">
-                            La Serpiente to geniusz taktyki. Jej obrona jest równie niebezpieczna, co atak. Potrafi zaskoczyć przeciwnika kontratakiem po udanym bloku.
-                        </p>
-                    </div>
-                    <div class="mt-4 text-right">
-                        <button data-target="serpiente-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
-                            Więcej
-                        </button>
-                    </div>
                 </div>
 
-                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fuego">
                     <h3 class="text-3xl font-bold text-orange-500">El Fuego</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 4 | Z: 3 | W: 3</p>
                     <p class="mt-4 text-gray-300">
                         Waleczny i wytrwały. Zyskuje +1 siły po otrzymaniu ataku.
                     </p>
-                    <div id="fuego-details" class="hidden mt-4 pt-4 border-t border-gray-700">
-                        <p class="text-gray-400 text-sm italic">
-                            El Fuego to zapaśnik, który rośnie w siłę, gdy jest atakowany. Im więcej obrażeń, tym staje się silniejszy, co czyni go trudnym przeciwnikiem do pokonania.
-                        </p>
-                    </div>
-                    <div class="mt-4 text-right">
-                        <button data-target="fuego-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
-                            Więcej
-                        </button>
-                    </div>
                 </div>
 
             </div>
-        </main>
 
-        <section class="text-center my-12 p-8 bg-gray-800 rounded-lg shadow-xl border border-gray-700">
-            <h2 class="text-4xl font-bold text-yellow-400">Zdarzenie Losowe</h2>
-            <p id="event-description" class="mt-4 text-gray-300 text-lg">
-                Kliknij przycisk, aby odkryć, jakie zdarzenie losowe urozmaici twoją walkę!
-            </p>
-            <button id="event-btn" class="mt-6 bg-yellow-400 text-gray-900 font-bold py-3 px-6 rounded-full text-lg hover:bg-yellow-500 transition-colors">
-                Odkryj Zdarzenie
-            </button>
-        </section>
+            <div class="text-center mt-12">
+                <button id="start-btn" class="bg-gray-700 text-gray-400 font-bold py-3 px-8 rounded-full text-xl opacity-50 cursor-not-allowed transition-all" disabled>
+                    Rozpocznij Walkę
+                </button>
+            </div>
+        </main>
 
     </div>
 
     <script>
-        // Obsługa rozwijanych opisów postaci
-        document.querySelectorAll('.toggle-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-target');
-                const targetElement = document.getElementById(targetId);
-                
-                if (targetElement.classList.contains('hidden')) {
-                    targetElement.classList.remove('hidden');
-                    this.innerText = 'Mniej';
-                } else {
-                    targetElement.classList.add('hidden');
-                    this.innerText = 'Więcej';
+        const characterCards = document.querySelectorAll('.character-card');
+        const startBtn = document.getElementById('start-btn');
+        let selectedCharacter = null;
+
+        characterCards.forEach(card => {
+            card.addEventListener('click', () => {
+                // Usuń klasę 'selected' z poprzednio wybranej karty
+                if (selectedCharacter) {
+                    selectedCharacter.classList.remove('selected');
                 }
+                
+                // Dodaj klasę 'selected' do klikniętej karty
+                card.classList.add('selected');
+                selectedCharacter = card;
+                
+                // Aktywuj przycisk startu
+                startBtn.disabled = false;
+                startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
             });
         });
 
-        // Funkcja do obsługi losowego zdarzenia
-        document.getElementById('event-btn').addEventListener('click', function() {
-            const events = [
-                "🎉 Wsparcie Publiczności! Jeden z zawodników zyskuje tymczasowy bonus +1 Siły.",
-                "💥 Zemsta Sędziego! Sędzia denerwuje się i wypycha obu zawodników o jedno pole.",
-                "🃏 Spadek Kart! Losowa karta z ręki jednego z zawodników ląduje w talii odrzuconych.",
-                "🔄 Zamiana Miejsc! Obaj zawodnicy zamieniają się pozycjami na planszy."
-            ];
-            const randomIndex = Math.floor(Math.random() * events.length);
-            document.getElementById('event-description').innerText = events[randomIndex];
+        startBtn.addEventListener('click', () => {
+            if (selectedCharacter) {
+                const characterName = selectedCharacter.getAttribute('data-character');
+                alert(`Rozpoczynasz walkę jako ${characterName}! Niech walka się rozpocznie!`);
+                // Tutaj można dodać kod do faktycznego rozpoczęcia gry, np. przekierowanie na inną stronę
+                // window.location.href = 'gra.html?character=' + characterName;
+            }
         });
     </script>
 </body>
