@@ -18,9 +18,28 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         .character-card.selected {
-            border-color: #FACC15; /* yellow-400 */
+            border-color: #FACC15;
             box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
             transform: scale(1.03);
+        }
+        .ring-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            border: 4px solid #FACC15;
+            border-radius: 8px;
+        }
+        .ring-cell {
+            background-color: #2D3748;
+            border: 2px solid #1A202C;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: #CBD5E0;
         }
     </style>
 </head>
@@ -40,7 +59,7 @@
             
             <div id="character-selection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fantasma">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fantasma" data-symbol="👻">
                     <h3 class="text-3xl font-bold text-yellow-300">El Fantasma</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 5 | W: 2</p>
                     <p class="mt-4 text-gray-300">
@@ -48,7 +67,7 @@
                     </p>
                 </div>
 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="Big Toro">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="Big Toro" data-symbol="🐂">
                     <h3 class="text-3xl font-bold text-red-500">Big Toro</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 6 | Z: 1 | W: 4</p>
                     <p class="mt-4 text-gray-300">
@@ -56,7 +75,7 @@
                     </p>
                 </div>
 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="La Serpiente">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="La Serpiente" data-symbol="🐍">
                     <h3 class="text-3xl font-bold text-green-500">La Serpiente</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 4 | W: 3</p>
                     <p class="mt-4 text-gray-300">
@@ -64,7 +83,7 @@
                     </p>
                 </div>
 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fuego">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fuego" data-symbol="🔥">
                     <h3 class="text-3xl font-bold text-orange-500">El Fuego</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 4 | Z: 3 | W: 3</p>
                     <p class="mt-4 text-gray-300">
@@ -85,9 +104,25 @@
             <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Walka</h2>
             
             <div class="bg-gray-800 p-8 rounded-lg text-center">
-                <p id="game-status" class="text-2xl font-semibold mb-4"></p>
-                <p class="text-gray-400">Plansza do gry jest gotowa. Gra się rozpoczęła!</p>
+                <p id="game-status" class="text-2xl font-semibold mb-8"></p>
+                
+                <div class="ring-grid">
+                    <div id="cell-0" class="ring-cell"></div>
+                    <div id="cell-1" class="ring-cell"></div>
+                    <div id="cell-2" class="ring-cell"></div>
+                    <div id="cell-3" class="ring-cell"></div>
+                    <div id="cell-4" class="ring-cell"></div>
+                    <div id="cell-5" class="ring-cell"></div>
+                    <div id="cell-6" class="ring-cell"></div>
+                    <div id="cell-7" class="ring-cell"></div>
+                    <div id="cell-8" class="ring-cell"></div>
                 </div>
+
+                <div class="mt-8 text-lg">
+                    <p>Twój symbol: <span id="player-symbol" class="font-bold text-yellow-400"></span></p>
+                    <p>Przeciwnik: <span id="opponent-symbol" class="font-bold text-red-500"></span></p>
+                </div>
+            </div>
         </section>
 
     </div>
@@ -98,6 +133,10 @@
         const characterSelectionContainer = document.getElementById('character-selection-container');
         const gameContainer = document.getElementById('game-container');
         const gameStatus = document.getElementById('game-status');
+        const playerSymbolEl = document.getElementById('player-symbol');
+        const opponentSymbolEl = document.getElementById('opponent-symbol');
+        const cells = document.querySelectorAll('.ring-cell');
+
         let selectedCharacter = null;
 
         characterCards.forEach(card => {
@@ -121,7 +160,11 @@
         startBtn.addEventListener('click', () => {
             if (selectedCharacter) {
                 const characterName = selectedCharacter.getAttribute('data-character');
-                
+                const playerSymbol = selectedCharacter.getAttribute('data-symbol');
+                const opponentCharacters = Array.from(characterCards).filter(c => c !== selectedCharacter);
+                const opponent = opponentCharacters[Math.floor(Math.random() * opponentCharacters.length)];
+                const opponentSymbol = opponent.getAttribute('data-symbol');
+
                 // Ukryj sekcję wyboru postaci
                 characterSelectionContainer.classList.add('hidden');
                 
@@ -130,6 +173,14 @@
                 
                 // Zaktualizuj status gry
                 gameStatus.innerText = `Rozpoczynasz walkę jako ${characterName}! Niech walka się rozpocznie!`;
+                
+                // Zaktualizuj symbole zawodników
+                playerSymbolEl.innerText = playerSymbol;
+                opponentSymbolEl.innerText = opponentSymbol;
+
+                // Ustaw zawodników na planszy
+                cells[0].innerText = playerSymbol;
+                cells[8].innerText = opponentSymbol;
             }
         });
     </script>
