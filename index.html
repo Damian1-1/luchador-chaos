@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lucha Rumble! - Oficjalna Strona Gry</title>
+    <title>Lucha Rumble! - Gra</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -40,6 +40,16 @@
             align-items: center;
             font-size: 2rem;
             color: #CBD5E0;
+            transition: background-color 0.3s;
+        }
+        .card {
+            border: 2px solid #374151;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
         }
     </style>
 </head>
@@ -50,7 +60,7 @@
         <header class="text-center my-12" id="header-container">
             <h1 class="text-5xl md:text-6xl font-extrabold text-yellow-400 drop-shadow-lg">Lucha Rumble!</h1>
             <p class="mt-4 text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto">
-                Przeżyj emocjonującą taktyczną walkę na ringu!
+                Wybierz swojego zapaśnika i rozpocznij walkę!
             </p>
         </header>
 
@@ -59,35 +69,35 @@
             
             <div id="character-selection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fantasma" data-symbol="👻">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fantasma" data-symbol="👻" data-strength="2" data-agility="5" data-endurance="2">
                     <h3 class="text-3xl font-bold text-yellow-300">El Fantasma</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 5 | W: 2</p>
                     <p class="mt-4 text-gray-300">
-                        Zwinny i szybki, potrafi poruszać się przez pola zajęte przez innych graczy.
+                        Mistrz uników i szybkich ataków.
                     </p>
                 </div>
 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="Big Toro" data-symbol="🐂">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="Big Toro" data-symbol="🐂" data-strength="6" data-agility="1" data-endurance="4">
                     <h3 class="text-3xl font-bold text-red-500">Big Toro</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 6 | Z: 1 | W: 4</p>
                     <p class="mt-4 text-gray-300">
-                        Powolny, ale niezwykle potężny. Po udanym ataku zyskuje +1 siły w następnej turze.
+                        Powolny, ale niezwykle potężny.
                     </p>
                 </div>
 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="La Serpiente" data-symbol="🐍">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="La Serpiente" data-symbol="🐍" data-strength="2" data-agility="4" data-endurance="3">
                     <h3 class="text-3xl font-bold text-green-500">La Serpiente</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 4 | W: 3</p>
                     <p class="mt-4 text-gray-300">
-                        Zrównoważona i przebiegła. Po udanej obronie może zagrać kontratak.
+                        Zrównoważona i przebiegła taktyczka.
                     </p>
                 </div>
 
-                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fuego" data-symbol="🔥">
+                <div class="character-card bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700" data-character="El Fuego" data-symbol="🔥" data-strength="4" data-agility="3" data-endurance="3">
                     <h3 class="text-3xl font-bold text-orange-500">El Fuego</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 4 | Z: 3 | W: 3</p>
                     <p class="mt-4 text-gray-300">
-                        Waleczny i wytrwały. Zyskuje +1 siły po otrzymaniu ataku.
+                        Waleczny, rośnie w siłę po otrzymaniu ataku.
                     </p>
                 </div>
 
@@ -119,38 +129,205 @@
                 </div>
 
                 <div class="mt-8 text-lg">
+                    <p>Twoja tura: <span id="player-turn" class="font-bold text-yellow-400"></span></p>
                     <p>Twój symbol: <span id="player-symbol" class="font-bold text-yellow-400"></span></p>
                     <p>Przeciwnik: <span id="opponent-symbol" class="font-bold text-red-500"></span></p>
                 </div>
+
+                <div id="player-hand" class="mt-8 flex justify-center gap-4">
+                    </div>
             </div>
+        </section>
+
+        <section id="end-game-container" class="py-12 hidden text-center">
+            <h2 id="end-game-title" class="text-5xl font-bold mb-4 text-yellow-400"></h2>
+            <p id="end-game-message" class="text-xl text-gray-300"></p>
+            <button id="restart-btn" class="mt-6 bg-yellow-400 text-gray-900 font-bold py-3 px-6 rounded-full text-lg hover:bg-yellow-500 transition-colors">
+                Zagraj ponownie
+            </button>
         </section>
 
     </div>
 
     <script>
+        // Definicje postaci i kart
+        const CHARACTERS = [
+            { name: "El Fantasma", symbol: "👻", stats: { s: 2, z: 5, w: 2 } },
+            { name: "Big Toro", symbol: "🐂", stats: { s: 6, z: 1, w: 4 } },
+            { name: "La Serpiente", symbol: "🐍", stats: { s: 2, z: 4, w: 3 } },
+            { name: "El Fuego", symbol: "🔥", stats: { s: 4, z: 3, w: 3 } }
+        ];
+
+        const CARD_DECK = [
+            { type: 'atak', name: 'Szybki Cios', power: 1, move: 1, reqs: { s: 2 } },
+            { type: 'ruch', name: 'Drobny Skok', power: 0, move: 1, reqs: { z: 2 } },
+            { type: 'obrona', name: 'Drobny Blok', power: 0, move: 0, reqs: { w: 2 } },
+            { type: 'atak', name: 'Mocne Wypchnięcie', power: 2, move: 2, reqs: { s: 3 } },
+            { type: 'ruch', name: 'Długi Krok', power: 0, move: 2, reqs: { z: 3 } },
+        ];
+
+        // Zmienne stanu gry
+        let player = null;
+        let opponent = null;
+        let playerPos = null;
+        let opponentPos = null;
+        let currentPlayer = null;
+        let turn = 0;
+
+        // Elementy DOM
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
         const characterSelectionContainer = document.getElementById('character-selection-container');
         const gameContainer = document.getElementById('game-container');
-        const gameStatus = document.getElementById('game-status');
+        const gameStatusEl = document.getElementById('game-status');
         const playerSymbolEl = document.getElementById('player-symbol');
         const opponentSymbolEl = document.getElementById('opponent-symbol');
+        const playerTurnEl = document.getElementById('player-turn');
+        const playerHandEl = document.getElementById('player-hand');
         const cells = document.querySelectorAll('.ring-cell');
+        const endGameContainer = document.getElementById('end-game-container');
+        const endGameTitleEl = document.getElementById('end-game-title');
+        const endGameMessageEl = document.getElementById('end-game-message');
+        const restartBtn = document.getElementById('restart-btn');
 
-        let selectedCharacter = null;
+        // Funkcje gry
+        function initializeGame() {
+            // Wybierz losowego przeciwnika
+            const availableOpponents = CHARACTERS.filter(c => c.name !== player.name);
+            opponent = availableOpponents[Math.floor(Math.random() * availableOpponents.length)];
 
+            // Ustaw pozycje początkowe
+            playerPos = 0;
+            opponentPos = 8;
+            cells[playerPos].innerText = player.symbol;
+            cells[opponentPos].innerText = opponent.symbol;
+
+            // Ustaw symbole
+            playerSymbolEl.innerText = player.symbol;
+            opponentSymbolEl.innerText = opponent.symbol;
+
+            // Zdefiniuj, kto zaczyna
+            currentPlayer = player;
+            turn = 1;
+            playerTurnEl.innerText = currentPlayer.name;
+            gameStatusEl.innerText = `Rozpoczynasz walkę jako ${player.name} przeciwko ${opponent.name}!`;
+            
+            // Dobierz karty
+            drawHand();
+        }
+
+        function drawHand() {
+            playerHandEl.innerHTML = '';
+            for (let i = 0; i < 5; i++) {
+                const card = CARD_DECK[Math.floor(Math.random() * CARD_DECK.length)];
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card bg-gray-700 p-4 rounded-lg text-center';
+                cardEl.innerHTML = `
+                    <h4 class="font-bold">${card.name}</h4>
+                    <p class="text-sm text-gray-400">(${card.type})</p>
+                    <p class="text-xs mt-2">Siła: ${card.power}, Ruch: ${card.move}</p>
+                `;
+                cardEl.addEventListener('click', () => playCard(card));
+                playerHandEl.appendChild(cardEl);
+            }
+        }
+
+        function playCard(card) {
+            if (currentPlayer !== player) return; // Uproszczona logika, gracz gra tylko swoją turę
+
+            let validMove = false;
+            
+            if (card.type === 'atak') {
+                const newOpponentPos = opponentPos + card.move;
+                if (newOpponentPos >= 0 && newOpponentPos < 9) {
+                    cells[opponentPos].innerText = '';
+                    opponentPos = newOpponentPos;
+                    cells[opponentPos].innerText = opponent.symbol;
+                    gameStatusEl.innerText = `Używasz ${card.name}! Przeciwnik przesuwa się!`;
+                    validMove = true;
+                } else {
+                    endGame(player);
+                    validMove = true;
+                }
+            } else if (card.type === 'ruch') {
+                const newPlayerPos = playerPos + card.move;
+                if (newPlayerPos >= 0 && newPlayerPos < 9) {
+                    cells[playerPos].innerText = '';
+                    playerPos = newPlayerPos;
+                    cells[playerPos].innerText = player.symbol;
+                    gameStatusEl.innerText = `Przesuwasz się używając ${card.name}.`;
+                    validMove = true;
+                }
+            }
+
+            if (validMove) {
+                // Przełączenie tury na przeciwnika (uproszczona logika AI)
+                setTimeout(() => {
+                    const opponentCard = CARD_DECK[Math.floor(Math.random() * CARD_DECK.length)];
+                    if (opponentCard.type === 'atak') {
+                        const newPlayerPos = playerPos - opponentCard.move;
+                         if (newPlayerPos >= 0 && newPlayerPos < 9) {
+                            cells[playerPos].innerText = '';
+                            playerPos = newPlayerPos;
+                            cells[playerPos].innerText = player.symbol;
+                            gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
+                        } else {
+                            endGame(opponent);
+                        }
+                    } else if (opponentCard.type === 'ruch') {
+                         const newOpponentPos = opponentPos - opponentCard.move;
+                         if (newOpponentPos >= 0 && newOpponentPos < 9) {
+                             cells[opponentPos].innerText = '';
+                             opponentPos = newOpponentPos;
+                             cells[opponentPos].innerText = opponent.symbol;
+                             gameStatusEl.innerText = `Przeciwnik porusza się.`;
+                         }
+                    }
+                    setTimeout(() => {
+                         // Zakończenie tury i dobieranie nowych kart
+                         drawHand();
+                         playerTurnEl.innerText = player.name;
+                    }, 1000);
+                }, 1000);
+            }
+        }
+
+        function endGame(winner) {
+            gameContainer.classList.add('hidden');
+            endGameContainer.classList.remove('hidden');
+            if (winner === player) {
+                endGameTitleEl.innerText = "Zwycięstwo!";
+                endGameMessageEl.innerText = `Gratulacje! Wygrałeś walkę jako ${player.name}!`;
+            } else {
+                endGameTitleEl.innerText = "Porażka!";
+                endGameMessageEl.innerText = `Niestety, przegrałeś. ${opponent.name} okazał się lepszy.`;
+            }
+        }
+
+        function restartGame() {
+            endGameContainer.classList.add('hidden');
+            characterSelectionContainer.classList.remove('hidden');
+            
+            // Reset stanu gry
+            selectedCharacter = null;
+            player = null;
+            opponent = null;
+            playerPos = null;
+            opponentPos = null;
+            cells.forEach(cell => cell.innerText = '');
+            startBtn.disabled = true;
+            startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
+            startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+        }
+
+        // Event Listeners
         characterCards.forEach(card => {
             card.addEventListener('click', () => {
-                // Usuń klasę 'selected' z poprzednio wybranej karty
                 if (selectedCharacter) {
                     selectedCharacter.classList.remove('selected');
                 }
-                
-                // Dodaj klasę 'selected' do klikniętej karty
                 card.classList.add('selected');
                 selectedCharacter = card;
-                
-                // Aktywuj przycisk startu
                 startBtn.disabled = false;
                 startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
                 startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
@@ -159,30 +336,17 @@
 
         startBtn.addEventListener('click', () => {
             if (selectedCharacter) {
-                const characterName = selectedCharacter.getAttribute('data-character');
-                const playerSymbol = selectedCharacter.getAttribute('data-symbol');
-                const opponentCharacters = Array.from(characterCards).filter(c => c !== selectedCharacter);
-                const opponent = opponentCharacters[Math.floor(Math.random() * opponentCharacters.length)];
-                const opponentSymbol = opponent.getAttribute('data-symbol');
-
-                // Ukryj sekcję wyboru postaci
-                characterSelectionContainer.classList.add('hidden');
+                const characterData = CHARACTERS.find(c => c.name === selectedCharacter.getAttribute('data-character'));
+                player = characterData;
                 
-                // Pokaż sekcję gry
+                characterSelectionContainer.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
                 
-                // Zaktualizuj status gry
-                gameStatus.innerText = `Rozpoczynasz walkę jako ${characterName}! Niech walka się rozpocznie!`;
-                
-                // Zaktualizuj symbole zawodników
-                playerSymbolEl.innerText = playerSymbol;
-                opponentSymbolEl.innerText = opponentSymbol;
-
-                // Ustaw zawodników na planszy
-                cells[0].innerText = playerSymbol;
-                cells[8].innerText = opponentSymbol;
+                initializeGame();
             }
         });
+
+        restartBtn.addEventListener('click', restartGame);
     </script>
 </body>
 </html>
