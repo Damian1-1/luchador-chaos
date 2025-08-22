@@ -129,7 +129,6 @@
                 </div>
 
                 <div class="mt-8 text-lg">
-                    <p>Twoja tura: <span id="player-turn" class="font-bold text-yellow-400"></span></p>
                     <p>Twój symbol: <span id="player-symbol" class="font-bold text-yellow-400"></span></p>
                     <p>Przeciwnik: <span id="opponent-symbol" class="font-bold text-red-500"></span></p>
                 </div>
@@ -182,7 +181,6 @@
         const gameStatusEl = document.getElementById('game-status');
         const playerSymbolEl = document.getElementById('player-symbol');
         const opponentSymbolEl = document.getElementById('opponent-symbol');
-        const playerTurnEl = document.getElementById('player-turn');
         const playerHandEl = document.getElementById('player-hand');
         const cells = document.querySelectorAll('.ring-cell');
         const endGameContainer = document.getElementById('end-game-container');
@@ -209,7 +207,6 @@
             // Zdefiniuj, kto zaczyna
             currentPlayer = player;
             turn = 1;
-            playerTurnEl.innerText = currentPlayer.name;
             gameStatusEl.innerText = `Rozpoczynasz walkę jako ${player.name} przeciwko ${opponent.name}!`;
             
             // Dobierz karty
@@ -233,21 +230,29 @@
         }
 
         function playCard(card) {
-            if (currentPlayer !== player) return; // Uproszczona logika, gracz gra tylko swoją turę
+            if (currentPlayer !== player) return; // Gracz gra tylko swoją turę
 
             let validMove = false;
             
             if (card.type === 'atak') {
-                const newOpponentPos = opponentPos + card.move;
-                if (newOpponentPos >= 0 && newOpponentPos < 9) {
-                    cells[opponentPos].innerText = '';
-                    opponentPos = newOpponentPos;
-                    cells[opponentPos].innerText = opponent.symbol;
-                    gameStatusEl.innerText = `Używasz ${card.name}! Przeciwnik przesuwa się!`;
-                    validMove = true;
+                const distance = Math.abs(playerPos - opponentPos);
+                if (distance <= card.move) {
+                    const pushDirection = (opponentPos > playerPos) ? 1 : -1;
+                    const newOpponentPos = opponentPos + (card.power * pushDirection);
+                    
+                    if (newOpponentPos >= 0 && newOpponentPos < 9) {
+                        cells[opponentPos].innerText = '';
+                        opponentPos = newOpponentPos;
+                        cells[opponentPos].innerText = opponent.symbol;
+                        gameStatusEl.innerText = `Używasz ${card.name}! Przeciwnik przesuwa się!`;
+                        validMove = true;
+                    } else {
+                        endGame(player);
+                        validMove = true;
+                    }
                 } else {
-                    endGame(player);
-                    validMove = true;
+                    gameStatusEl.innerText = "Karta ataku jest poza zasięgiem. Wybierz inną kartę.";
+                    validMove = false;
                 }
             } else if (card.type === 'ruch') {
                 const newPlayerPos = playerPos + card.move;
@@ -261,18 +266,25 @@
             }
 
             if (validMove) {
-                // Przełączenie tury na przeciwnika (uproszczona logika AI)
+                // Tura przeciwnika
                 setTimeout(() => {
                     const opponentCard = CARD_DECK[Math.floor(Math.random() * CARD_DECK.length)];
                     if (opponentCard.type === 'atak') {
-                        const newPlayerPos = playerPos - opponentCard.move;
-                         if (newPlayerPos >= 0 && newPlayerPos < 9) {
-                            cells[playerPos].innerText = '';
-                            playerPos = newPlayerPos;
-                            cells[playerPos].innerText = player.symbol;
-                            gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
+                        const distance = Math.abs(playerPos - opponentPos);
+                        if (distance <= opponentCard.move) {
+                            const pushDirection = (playerPos > opponentPos) ? 1 : -1;
+                            const newPlayerPos = playerPos + (opponentCard.power * pushDirection);
+                            
+                            if (newPlayerPos >= 0 && newPlayerPos < 9) {
+                                cells[playerPos].innerText = '';
+                                playerPos = newPlayerPos;
+                                cells[playerPos].innerText = player.symbol;
+                                gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
+                            } else {
+                                endGame(opponent);
+                            }
                         } else {
-                            endGame(opponent);
+                            gameStatusEl.innerText = `Przeciwnik marnuje ruch.`;
                         }
                     } else if (opponentCard.type === 'ruch') {
                          const newOpponentPos = opponentPos - opponentCard.move;
@@ -284,9 +296,7 @@
                          }
                     }
                     setTimeout(() => {
-                         // Zakończenie tury i dobieranie nowych kart
                          drawHand();
-                         playerTurnEl.innerText = player.name;
                     }, 1000);
                 }, 1000);
             }
@@ -336,7 +346,16 @@
 
         startBtn.addEventListener('click', () => {
             if (selectedCharacter) {
-                const characterData = CHARACTERS.find(c => c.name === selectedCharacter.getAttribute('data-character'));
+                // Upewnij się, że dane są pobierane z atrybutów DOM, a nie ze statycznej tablicy
+                const characterData = {
+                    name: selectedCharacter.getAttribute('data-character'),
+                    symbol: selectedCharacter.getAttribute('data-symbol'),
+                    stats: {
+                        s: parseInt(selectedCharacter.getAttribute('data-strength')),
+                        z: parseInt(selectedCharacter.getAttribute('data-agility')),
+                        w: parseInt(selectedCharacter.getAttribute('data-endurance'))
+                    }
+                };
                 player = characterData;
                 
                 characterSelectionContainer.classList.add('hidden');
