@@ -28,14 +28,14 @@
 
     <div class="container mx-auto p-4 md:p-8">
 
-        <header class="text-center my-12">
+        <header class="text-center my-12" id="header-container">
             <h1 class="text-5xl md:text-6xl font-extrabold text-yellow-400 drop-shadow-lg">Lucha Rumble!</h1>
             <p class="mt-4 text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto">
-                Przeżyj emocjonującą taktyczną walkę na ringu! Wybierz swojego zapaśnika, używaj potężnych kart i wypchnij przeciwnika z planszy, aby zdobyć chwałę!
+                Przeżyj emocjonującą taktyczną walkę na ringu!
             </p>
         </header>
 
-        <main class="py-12">
+        <main class="py-12" id="character-selection-container">
             <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Wybierz swojego zawodnika</h2>
             
             <div id="character-selection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -80,12 +80,24 @@
                 </button>
             </div>
         </main>
+        
+        <section id="game-container" class="py-12 hidden">
+            <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Walka</h2>
+            
+            <div class="bg-gray-800 p-8 rounded-lg text-center">
+                <p id="game-status" class="text-2xl font-semibold mb-4"></p>
+                <p class="text-gray-400">Plansza do gry jest gotowa. Gra się rozpoczęła!</p>
+                </div>
+        </section>
 
     </div>
 
     <script>
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
+        const characterSelectionContainer = document.getElementById('character-selection-container');
+        const gameContainer = document.getElementById('game-container');
+        const gameStatus = document.getElementById('game-status');
         let selectedCharacter = null;
 
         characterCards.forEach(card => {
@@ -109,9 +121,15 @@
         startBtn.addEventListener('click', () => {
             if (selectedCharacter) {
                 const characterName = selectedCharacter.getAttribute('data-character');
-                alert(`Rozpoczynasz walkę jako ${characterName}! Niech walka się rozpocznie!`);
-                // Tutaj można dodać kod do faktycznego rozpoczęcia gry, np. przekierowanie na inną stronę
-                // window.location.href = 'gra.html?character=' + characterName;
+                
+                // Ukryj sekcję wyboru postaci
+                characterSelectionContainer.classList.add('hidden');
+                
+                // Pokaż sekcję gry
+                gameContainer.classList.remove('hidden');
+                
+                // Zaktualizuj status gry
+                gameStatus.innerText = `Rozpoczynasz walkę jako ${characterName}! Niech walka się rozpocznie!`;
             }
         });
     </script>
