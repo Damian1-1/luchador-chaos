@@ -1,477 +1,134 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8" />
-<title>Turowa gra wrestlingowa z drag&drop i atakiem</title>
-<style>
-  #board {
-    display: grid;
-    grid-template-columns: repeat(6, 60px);
-    grid-template-rows: repeat(6, 60px);
-    gap: 3px;
-    margin-bottom: 15px;
-    user-select: none;
-  }
-  .cell {
-    width: 60px;
-    height: 60px;
-    background-color: #eee;
-    border: 1px solid #ccc;
-    position: relative;
-  }
-  .cell.highlight-move {
-    background-color: #bdf !important;
-  }
-  .cell.highlight-attack {
-    background-color: #fbb !important;
-  }
-  .cell .wrestler {
-    width: 56px;
-    height: 56px;
-    background-color: #2277cc;
-    border-radius: 8px;
-    margin: 2px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-weight: bold;
-    user-select: none;
-    cursor: grab;
-  }
-  .cell .wrestler.selected {
-    outline: 3px solid #ff0;
-  }
-  .cell .wrestler.enemy {
-    background-color: #a22;
-    cursor: pointer;
-  }
-  .cell .wrestler.attack {
-    animation: attackAnim 0.8s;
-  }
-  @keyframes attackAnim {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(10px); }
-  }
-  #info-panel {
-    border: 1px solid #ccc;
-    padding: 10px;
-    max-width: 400px;
-    background: #f9f9f9;
-  }
-  .cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin: 10px 0;
-  }
-  .card {
-    background: #def;
-    border: 1px solid #aac;
-    border-radius: 5px;
-    padding: 4px 6px;
-    width: 110px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .card.selected {
-    background-color: #48a !important;
-    color: white;
-  }
-  button {
-    margin: 5px 4px 5px 0;
-    padding: 6px 12px;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucha Rumble! - Oficjalna Strona Gry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Ustawienie tła, aby zajmowało całą wysokość widoku */
+        body {
+            min-height: 100vh;
+        }
+    </style>
 </head>
-<body>
-<h2>Turowa gra wrestlingowa z drag&drop i atakiem</h2>
-<div id="board"></div>
-<div id="info-panel"></div>
+<body class="bg-gray-900 text-white font-sans">
 
-<script>
-  const BOARD_SIZE = 6;
-  let gameState = {
-    board: [],
-    wrestlers: [],
-    currentPlayerIndex: 0,
-    turn: 1,
-    selectedCardIndex: null,
-    selectedTarget: null, // cel ataku
-    dragSource: null,
-    animationLock: false,
-  };
+    <div class="container mx-auto p-4 md:p-8">
 
-  const ACTION_CARDS = [
-    {
-      id: 1,
-      name: 'Ruch',
-      type: 'move',
-      description: 'Przesuń zawodnika o 2 pola w dowolnym kierunku (drag&drop).',
-    },
-    {
-      id: 2,
-      name: 'Atak',
-      type: 'attack',
-      description: 'Kliknij przeciwnika w zasięgu 1 pola, potem użyj karty, by zaatakować.',
-    },
-    {
-      id: 3,
-      name: 'Obrona',
-      type: 'defend',
-      description: 'Zwiększ obronę o 2 na tę turę (działa od razu po użyciu).',
-    },
-    {
-      id: 4,
-      name: 'Specjalny cios',
-      type: 'special',
-      description: 'Zadaj 4 obrażenia przeciwnikowi w zasięgu 1 pola.',
-    }
-  ];
+        <header class="text-center my-12">
+            <h1 class="text-5xl md:text-6xl font-extrabold text-yellow-400 drop-shadow-lg">Lucha Rumble!</h1>
+            <p class="mt-4 text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto">
+                Przeżyj emocjonującą taktyczną walkę na ringu! Wybierz swojego zapaśnika, używaj potężnych kart i wypchnij przeciwnika z planszy, aby zdobyć chwałę!
+            </p>
+        </header>
 
-  function initBoard() {
-    gameState.board = [];
-    for(let y=0; y<BOARD_SIZE; y++) {
-      let row = [];
-      for(let x=0; x<BOARD_SIZE; x++) {
-        row.push(null);
-      }
-      gameState.board.push(row);
-    }
-  }
+        <main class="py-12">
+            <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Zawodnicy</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                    <h3 class="text-3xl font-bold text-yellow-300">El Fantasma</h3>
+                    <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 5 | W: 2</p>
+                    <p class="mt-4 text-gray-300">
+                        Zwinny i szybki, potrafi poruszać się przez pola zajęte przez innych graczy. Idealny dla graczy ceniących mobilność i uniki.
+                    </p>
+                    <div class="mt-4 text-right">
+                        <button id="fantasma-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                            Więcej
+                        </button>
+                    </div>
+                </div>
 
-  function initWrestlers() {
-    gameState.wrestlers = [
-      { id: 1, name: 'Gracz1', hp: 10, defense: 0, isAlive: true, position: {x: 0, y: 0}, hand: [], equipment: [] },
-      { id: 2, name: 'AI', hp: 10, defense: 0, isAlive: true, position: {x: BOARD_SIZE-1, y: BOARD_SIZE-1}, hand: [], equipment: [] },
-    ];
-  }
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                    <h3 class="text-3xl font-bold text-red-500">Big Toro</h3>
+                    <p class="text-sm text-gray-400 mt-2">S: 6 | Z: 1 | W: 4</p>
+                    <p class="mt-4 text-gray-300">
+                        Powolny, ale niezwykle potężny. Po udanym ataku zyskuje +1 siły w następnej turze.
+                    </p>
+                    <div class="mt-4 text-right">
+                        <button id="toro-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                            Więcej
+                        </button>
+                    </div>
+                </div>
 
-  function renderBoard() {
-    const boardEl = document.getElementById('board');
-    boardEl.innerHTML = '';
-    for(let y=0; y<BOARD_SIZE; y++) {
-      for(let x=0; x<BOARD_SIZE; x++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell';
-        cell.dataset.x = x;
-        cell.dataset.y = y;
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                    <h3 class="text-3xl font-bold text-green-500">La Serpiente</h3>
+                    <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 4 | W: 3</p>
+                    <p class="mt-4 text-gray-300">
+                        Zrównoważona i przebiegła. Po udanej obronie może zagrać kontratak.
+                    </p>
+                    <div class="mt-4 text-right">
+                        <button id="serpiente-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                            Więcej
+                        </button>
+                    </div>
+                </div>
 
-        const wrestlerHere = gameState.wrestlers.find(w => w.isAlive && w.position.x === x && w.position.y === y);
-        if(wrestlerHere) {
-          const wEl = document.createElement('div');
-          wEl.className = 'wrestler';
-          wEl.textContent = wrestlerHere.name[0];
+                <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
+                    <h3 class="text-3xl font-bold text-orange-500">El Fuego</h3>
+                    <p class="text-sm text-gray-400 mt-2">S: 4 | Z: 3 | W: 3</p>
+                    <p class="mt-4 text-gray-300">
+                        Waleczny i wytrwały. Zyskuje +1 siły po otrzymaniu ataku.
+                    </p>
+                    <div class="mt-4 text-right">
+                        <button id="fuego-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                            Więcej
+                        </button>
+                    </div>
+                </div>
 
-          // Kolor w zależności od gracza
-          if(gameState.currentPlayerIndex === gameState.wrestlers.indexOf(wrestlerHere)) {
-            wEl.style.backgroundColor = '#2a7';
-            wEl.setAttribute('draggable', 'true');
-          } else {
-            wEl.style.backgroundColor = '#a22';
-            wEl.classList.add('enemy');
-          }
+            </div>
+        </main>
 
-          // Zaznaczony atakujący zawodnik
-          if(gameState.dragSource === wrestlerHere) {
-            wEl.classList.add('selected');
-          }
+        <section class="text-center my-12 p-8 bg-gray-800 rounded-lg shadow-xl border border-gray-700">
+            <h2 class="text-4xl font-bold text-yellow-400">Zdarzenie Losowe</h2>
+            <p id="event-description" class="mt-4 text-gray-300 text-lg">
+                Kliknij przycisk, aby odkryć, jakie zdarzenie losowe urozmaici twoją walkę!
+            </p>
+            <button id="event-btn" class="mt-6 bg-yellow-400 text-gray-900 font-bold py-3 px-6 rounded-full text-lg hover:bg-yellow-500 transition-colors">
+                Odkryj Zdarzenie
+            </button>
+        </section>
 
-          // Klikalność przeciwnika jeśli karta ataku wybrana i w zasięgu
-          if(gameState.selectedCardIndex !== null) {
-            const card = gameState.wrestlers[gameState.currentPlayerIndex].hand[gameState.selectedCardIndex];
-            if(card.type === 'attack' || card.type === 'special') {
-              const attacker = gameState.wrestlers[gameState.currentPlayerIndex];
-              if(wrestlerHere !== attacker && distance(attacker.position, wrestlerHere.position) <= 1) {
-                wEl.style.cursor = 'pointer';
-                wEl.onclick = () => {
-                  if(gameState.animationLock) return;
-                  gameState.selectedTarget = wrestlerHere;
-                  renderInfoPanel();
-                };
-                if(gameState.selectedTarget === wrestlerHere) {
-                  wEl.style.outline = '3px solid yellow';
-                } else {
-                  wEl.style.outline = '';
-                }
-              }
-            }
-          }
+    </div>
 
-          // Obsługa drag & drop
-          if(gameState.currentPlayerIndex === gameState.wrestlers.indexOf(wrestlerHere)) {
-            wEl.addEventListener('dragstart', onDragStart);
-          }
+    <script>
+        // Funkcja do obsługi losowego zdarzenia
+        document.getElementById('event-btn').addEventListener('click', function() {
+            const events = [
+                "🎉 Wsparcie Publiczności! Jeden z zawodników zyskuje tymczasowy bonus +1 Siły.",
+                "💥 Zemsta Sędziego! Sędzia denerwuje się i wypycha obu zawodników o jedno pole.",
+                "🃏 Spadek Kart! Losowa karta z ręki jednego z zawodników ląduje w talii odrzuconych.",
+                "🔄 Zamiana Miejsc! Obaj zawodnicy zamieniają się pozycjami na planszy."
+            ];
+            const randomIndex = Math.floor(Math.random() * events.length);
+            document.getElementById('event-description').innerText = events[randomIndex];
+        });
 
-          cell.appendChild(wEl);
-        }
+        // Proste toggle dla przycisków
+        const fantasmaBtn = document.getElementById('fantasma-btn');
+        fantasmaBtn.addEventListener('click', function() {
+            alert('El Fantasma to mistrz uniku. Jego ruchy są płynne jak cień.');
+        });
+        
+        const toroBtn = document.getElementById('toro-btn');
+        toroBtn.addEventListener('click', function() {
+            alert('Big Toro to siła natury. Jego ataki są powolne, ale zabójcze.');
+        });
 
-        // Highlighty do ruchu
-        if(gameState.selectedCardIndex !== null) {
-          const card = gameState.wrestlers[gameState.currentPlayerIndex].hand[gameState.selectedCardIndex];
-          const currentWrestler = gameState.wrestlers[gameState.currentPlayerIndex];
-          if(card.type === 'move') {
-            if(distance({x, y}, currentWrestler.position) <= 2 && !cellHasWrestler(x,y)) {
-              cell.classList.add('highlight-move');
-              cell.addEventListener('dragover', onDragOver);
-              cell.addEventListener('drop', onDrop);
-            }
-          }
-        }
+        const serpienteBtn = document.getElementById('serpiente-btn');
+        serpienteBtn.addEventListener('click', function() {
+            alert('La Serpiente to geniusz taktyki. Jej obrona jest równie niebezpieczna co atak.');
+        });
 
-        boardEl.appendChild(cell);
-      }
-    }
-  }
+        const fuegoBtn = document.getElementById('fuego-btn');
+        fuegoBtn.addEventListener('click', function() {
+            alert('El Fuego rośnie w siłę, gdy jest atakowany. Im więcej obrażeń, tym silniejszy!');
+        });
 
-  function cellHasWrestler(x, y) {
-    return gameState.wrestlers.some(w => w.isAlive && w.position.x === x && w.position.y === y);
-  }
-
-  function onDragStart(ev) {
-    if(gameState.animationLock) {
-      ev.preventDefault();
-      return;
-    }
-    const x = +ev.target.parentElement.dataset.x;
-    const y = +ev.target.parentElement.dataset.y;
-    const wrestler = gameState.wrestlers.find(w => w.position.x === x && w.position.y === y);
-    if(!wrestler || gameState.wrestlers[gameState.currentPlayerIndex] !== wrestler) {
-      ev.preventDefault();
-      return;
-    }
-    const card = gameState.wrestlers[gameState.currentPlayerIndex].hand[gameState.selectedCardIndex];
-    if(!card || card.type !== 'move') {
-      ev.preventDefault();
-      alert('Wybierz kartę ruchu, żeby przeciągać zawodnika.');
-      return;
-    }
-    gameState.dragSource = wrestler;
-    ev.dataTransfer.setData('text/plain', JSON.stringify({x, y}));
-  }
-
-  function onDragOver(ev) {
-    ev.preventDefault();
-  }
-
-  function onDrop(ev) {
-    ev.preventDefault();
-    if(gameState.animationLock) return;
-    const targetX = +ev.target.dataset.x;
-    const targetY = +ev.target.dataset.y;
-    const sourcePos = gameState.dragSource.position;
-    if(distance(sourcePos, {x: targetX, y: targetY}) > 2) {
-      alert('Możesz się przesunąć max o 2 pola.');
-      return;
-    }
-    if(cellHasWrestler(targetX, targetY)) {
-      alert('To pole jest zajęte.');
-      return;
-    }
-    // Przesuń zawodnika
-    gameState.dragSource.position = {x: targetX, y: targetY};
-    gameState.selectedCardIndex = null; // karta zużyta
-    gameState.dragSource = null;
-    gameState.selectedTarget = null;
-    renderAll();
-  }
-
-  function distance(p1, p2) {
-    return Math.max(Math.abs(p1.x - p2.x), Math.abs(p1.y - p2.y));
-  }
-
-  function renderCards() {
-    const panel = document.getElementById('info-panel');
-    const player = gameState.wrestlers[gameState.currentPlayerIndex];
-    let html = `<b>Tura: ${gameState.turn} | Gracz: ${player.name}</b><br>HP: ${player.hp} | Obrona: ${player.defense}<br><br>`;
-    html += 'Karty (kliknij, by wybrać):<br><div class="cards-container">';
-    player.hand.forEach((card, i) => {
-      html += `<div class="card${gameState.selectedCardIndex === i ? ' selected' : ''}" data-index="${i}">${card.name}<br><small>${card.description}</small></div>`;
-    });
-    html += '</div>';
-    html += `<button id="use-card" disabled>Użyj karty</button> `;
-    html += `<button id="end-turn">Zakończ turę</button>`;
-
-    panel.innerHTML = html;
-
-    // Karty - klik
-    const cardsEls = panel.querySelectorAll('.card');
-    cardsEls.forEach(el => {
-      el.onclick = () => {
-        if(gameState.animationLock) return;
-        const idx = +el.dataset.index;
-        if(gameState.selectedCardIndex === idx) {
-          gameState.selectedCardIndex = null;
-          gameState.selectedTarget = null;
-        } else {
-          gameState.selectedCardIndex = idx;
-          gameState.selectedTarget = null;
-          gameState.dragSource = null;
-        }
-        renderAll();
-      };
-    });
-
-    // Przycisk użycia karty
-    const useBtn = document.getElementById('use-card');
-    useBtn.disabled = (gameState.selectedCardIndex === null);
-
-    // Aktywacja przycisku tylko gdy jest cel jeśli trzeba
-    if(gameState.selectedCardIndex !== null) {
-      const card = player.hand[gameState.selectedCardIndex];
-      if((card.type === 'attack' || card.type === 'special') && !gameState.selectedTarget) {
-        useBtn.disabled = true;
-      }
-    }
-
-    useBtn.onclick = () => {
-      if(gameState.animationLock) return;
-      playCard();
-    };
-
-    // Koniec tury
-    document.getElementById('end-turn').onclick = () => {
-      if(gameState.animationLock) return;
-      nextTurn();
-    };
-  }
-
-  function playCard() {
-    const player = gameState.wrestlers[gameState.currentPlayerIndex];
-    const card = player.hand[gameState.selectedCardIndex];
-    if(!card) return;
-
-    switch(card.type) {
-      case 'move':
-        alert('Ruch wykonany przeciągnięciem. Wybierz inną kartę lub zakończ turę.');
-        break;
-
-      case 'attack':
-        if(!gameState.selectedTarget) {
-          alert('Wybierz przeciwnika do ataku.');
-          return;
-        }
-        attack(player, gameState.selectedTarget, 2);
-        break;
-
-      case 'defend':
-        player.defense += 2;
-        alert(`${player.name} podnosi obronę o 2!`);
-        break;
-
-      case 'special':
-        if(!gameState.selectedTarget) {
-          alert('Wybierz przeciwnika do specjalnego ataku.');
-          return;
-        }
-        attack(player, gameState.selectedTarget, 4);
-        break;
-    }
-    // Usuwamy kartę z ręki po użyciu
-    player.hand.splice(gameState.selectedCardIndex, 1);
-    gameState.selectedCardIndex = null;
-    gameState.selectedTarget = null;
-    renderAll();
-  }
-
-  function attack(attacker, defender, damage) {
-    gameState.animationLock = true;
-    const defenderEl = [...document.querySelectorAll('.wrestler.enemy')]
-      .find(el => {
-        const x = +el.parentElement.dataset.x;
-        const y = +el.parentElement.dataset.y;
-        return defender.position.x === x && defender.position.y === y;
-      });
-
-    if(defenderEl) {
-      defenderEl.classList.add('attack');
-      setTimeout(() => {
-        defenderEl.classList.remove('attack');
-        let actualDamage = Math.max(0, damage - defender.defense);
-        defender.hp -= actualDamage;
-        if(defender.hp <= 0) {
-          defender.isAlive = false;
-          alert(`${defender.name} został pokonany!`);
-        } else {
-          alert(`${attacker.name} zadał ${actualDamage} obrażeń ${defender.name}.`);
-        }
-        gameState.animationLock = false;
-        renderAll();
-      }, 800);
-    } else {
-      // Nie znaleziono elementu, wykonujemy od razu
-      let actualDamage = Math.max(0, damage - defender.defense);
-      defender.hp -= actualDamage;
-      if(defender.hp <= 0) {
-        defender.isAlive = false;
-        alert(`${defender.name} został pokonany!`);
-      } else {
-        alert(`${attacker.name} zadał ${actualDamage} obrażeń ${defender.name}.`);
-      }
-      gameState.animationLock = false;
-      renderAll();
-    }
-  }
-
-  function nextTurn() {
-    // Reset obrony na koniec tury
-    gameState.wrestlers.forEach(w => {
-      w.defense = 0;
-    });
-
-    // Przełącz gracza
-    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.wrestlers.length;
-
-    // Nowa tura?
-    if(gameState.currentPlayerIndex === 0) {
-      gameState.turn++;
-    }
-
-    // Dodaj nowe karty do ręki (losowo)
-    const player = gameState.wrestlers[gameState.currentPlayerIndex];
-    if(player.isAlive) {
-      while(player.hand.length < 3) {
-        const newCard = ACTION_CARDS[Math.floor(Math.random()*ACTION_CARDS.length)];
-        player.hand.push({...newCard});
-      }
-    }
-
-    gameState.selectedCardIndex = null;
-    gameState.selectedTarget = null;
-    gameState.dragSource = null;
-    renderAll();
-  }
-
-  function renderInfoPanel() {
-    renderCards();
-  }
-
-  function renderAll() {
-    renderBoard();
-    renderInfoPanel();
-  }
-
-  function startGame() {
-    initBoard();
-    initWrestlers();
-    // Na start 3 karty dla każdego
-    gameState.wrestlers.forEach(w => {
-      w.hand = [];
-      while(w.hand.length < 3) {
-        const newCard = ACTION_CARDS[Math.floor(Math.random()*ACTION_CARDS.length)];
-        w.hand.push({...newCard});
-      }
-    });
-    gameState.currentPlayerIndex = 0;
-    gameState.turn = 1;
-    gameState.selectedCardIndex = null;
-    gameState.selectedTarget = null;
-    gameState.dragSource = null;
-    renderAll();
-  }
-
-  startGame();
-
-</script>
+    </script>
 </body>
 </html>
