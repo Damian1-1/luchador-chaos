@@ -170,8 +170,6 @@
         let opponent = null;
         let playerPos = null;
         let opponentPos = null;
-        let currentPlayer = null;
-        let turn = 0;
 
         // Elementy DOM
         const characterCards = document.querySelectorAll('.character-card');
@@ -205,8 +203,6 @@
             opponentSymbolEl.innerText = opponent.symbol;
 
             // Zdefiniuj, kto zaczyna
-            currentPlayer = player;
-            turn = 1;
             gameStatusEl.innerText = `Rozpoczynasz walkę jako ${player.name} przeciwko ${opponent.name}!`;
             
             // Dobierz karty
@@ -230,8 +226,7 @@
         }
 
         function playCard(card) {
-            if (currentPlayer !== player) return; // Gracz gra tylko swoją turę
-
+            // Uproszczona logika, gracz gra tylko swoją turę
             let validMove = false;
             
             if (card.type === 'atak') {
@@ -262,6 +257,8 @@
                     cells[playerPos].innerText = player.symbol;
                     gameStatusEl.innerText = `Przesuwasz się używając ${card.name}.`;
                     validMove = true;
+                } else {
+                    gameStatusEl.innerText = "Nie możesz wykonać tego ruchu. Jesteś przy krawędzi ringu.";
                 }
             }
 
@@ -293,6 +290,8 @@
                              opponentPos = newOpponentPos;
                              cells[opponentPos].innerText = opponent.symbol;
                              gameStatusEl.innerText = `Przeciwnik porusza się.`;
+                         } else {
+                             gameStatusEl.innerText = `Przeciwnik nie mógł się ruszyć, jest przy krawędzi ringu.`;
                          }
                     }
                     setTimeout(() => {
@@ -319,12 +318,12 @@
             characterSelectionContainer.classList.remove('hidden');
             
             // Reset stanu gry
-            selectedCharacter = null;
             player = null;
             opponent = null;
             playerPos = null;
             opponentPos = null;
             cells.forEach(cell => cell.innerText = '');
+            document.querySelectorAll('.character-card').forEach(card => card.classList.remove('selected'));
             startBtn.disabled = true;
             startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
             startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
@@ -333,11 +332,9 @@
         // Event Listeners
         characterCards.forEach(card => {
             card.addEventListener('click', () => {
-                if (selectedCharacter) {
-                    selectedCharacter.classList.remove('selected');
-                }
+                document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
-                selectedCharacter = card;
+                
                 startBtn.disabled = false;
                 startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
                 startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
@@ -345,10 +342,10 @@
         });
 
         startBtn.addEventListener('click', () => {
-            if (selectedCharacter) {
-                const characterName = selectedCharacter.getAttribute('data-character');
-                const characterData = CHARACTERS.find(c => c.name === characterName);
-                player = characterData;
+            const selectedCharacterEl = document.querySelector('.character-card.selected');
+            if (selectedCharacterEl) {
+                const characterName = selectedCharacterEl.getAttribute('data-character');
+                player = CHARACTERS.find(c => c.name === characterName);
                 
                 characterSelectionContainer.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
