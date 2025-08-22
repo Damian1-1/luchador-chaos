@@ -6,7 +6,6 @@
     <title>Lucha Rumble! - Oficjalna Strona Gry</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Ustawienie tła, aby zajmowało całą wysokość widoku */
         body {
             min-height: 100vh;
         }
@@ -32,10 +31,15 @@
                     <h3 class="text-3xl font-bold text-yellow-300">El Fantasma</h3>
                     <p class="text-sm text-gray-400 mt-2">S: 2 | Z: 5 | W: 2</p>
                     <p class="mt-4 text-gray-300">
-                        Zwinny i szybki, potrafi poruszać się przez pola zajęte przez innych graczy. Idealny dla graczy ceniących mobilność i uniki.
+                        Zwinny i szybki, potrafi poruszać się przez pola zajęte przez innych graczy.
                     </p>
+                    <div id="fantasma-details" class="hidden mt-4 pt-4 border-t border-gray-700">
+                        <p class="text-gray-400 text-sm italic">
+                            El Fantasma to mistrz uniku. Jego ruchy są płynne jak cień. Posiada karty ataku zwinnościowego i potężny finisher, który pozwala mu wypchnąć przeciwnika z dowolnej odległości.
+                        </p>
+                    </div>
                     <div class="mt-4 text-right">
-                        <button id="fantasma-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                        <button data-target="fantasma-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
                             Więcej
                         </button>
                     </div>
@@ -47,8 +51,13 @@
                     <p class="mt-4 text-gray-300">
                         Powolny, ale niezwykle potężny. Po udanym ataku zyskuje +1 siły w następnej turze.
                     </p>
+                    <div id="toro-details" class="hidden mt-4 pt-4 border-t border-gray-700">
+                        <p class="text-gray-400 text-sm italic">
+                            Big Toro to siła natury. Jego ataki są powolne, ale zabójcze. Wymaga strategicznego podejścia, by jego siła mogła naprawdę błyszczeć.
+                        </p>
+                    </div>
                     <div class="mt-4 text-right">
-                        <button id="toro-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                        <button data-target="toro-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
                             Więcej
                         </button>
                     </div>
@@ -60,8 +69,13 @@
                     <p class="mt-4 text-gray-300">
                         Zrównoważona i przebiegła. Po udanej obronie może zagrać kontratak.
                     </p>
+                    <div id="serpiente-details" class="hidden mt-4 pt-4 border-t border-gray-700">
+                        <p class="text-gray-400 text-sm italic">
+                            La Serpiente to geniusz taktyki. Jej obrona jest równie niebezpieczna, co atak. Potrafi zaskoczyć przeciwnika kontratakiem po udanym bloku.
+                        </p>
+                    </div>
                     <div class="mt-4 text-right">
-                        <button id="serpiente-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                        <button data-target="serpiente-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
                             Więcej
                         </button>
                     </div>
@@ -73,8 +87,13 @@
                     <p class="mt-4 text-gray-300">
                         Waleczny i wytrwały. Zyskuje +1 siły po otrzymaniu ataku.
                     </p>
+                    <div id="fuego-details" class="hidden mt-4 pt-4 border-t border-gray-700">
+                        <p class="text-gray-400 text-sm italic">
+                            El Fuego to zapaśnik, który rośnie w siłę, gdy jest atakowany. Im więcej obrażeń, tym staje się silniejszy, co czyni go trudnym przeciwnikiem do pokonania.
+                        </p>
+                    </div>
                     <div class="mt-4 text-right">
-                        <button id="fuego-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
+                        <button data-target="fuego-details" class="toggle-btn bg-yellow-400 text-gray-900 font-bold py-2 px-4 rounded-full hover:bg-yellow-500 transition-colors">
                             Więcej
                         </button>
                     </div>
@@ -96,6 +115,22 @@
     </div>
 
     <script>
+        // Obsługa rozwijanych opisów postaci
+        document.querySelectorAll('.toggle-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const targetElement = document.getElementById(targetId);
+                
+                if (targetElement.classList.contains('hidden')) {
+                    targetElement.classList.remove('hidden');
+                    this.innerText = 'Mniej';
+                } else {
+                    targetElement.classList.add('hidden');
+                    this.innerText = 'Więcej';
+                }
+            });
+        });
+
         // Funkcja do obsługi losowego zdarzenia
         document.getElementById('event-btn').addEventListener('click', function() {
             const events = [
@@ -107,28 +142,6 @@
             const randomIndex = Math.floor(Math.random() * events.length);
             document.getElementById('event-description').innerText = events[randomIndex];
         });
-
-        // Proste toggle dla przycisków
-        const fantasmaBtn = document.getElementById('fantasma-btn');
-        fantasmaBtn.addEventListener('click', function() {
-            alert('El Fantasma to mistrz uniku. Jego ruchy są płynne jak cień.');
-        });
-        
-        const toroBtn = document.getElementById('toro-btn');
-        toroBtn.addEventListener('click', function() {
-            alert('Big Toro to siła natury. Jego ataki są powolne, ale zabójcze.');
-        });
-
-        const serpienteBtn = document.getElementById('serpiente-btn');
-        serpienteBtn.addEventListener('click', function() {
-            alert('La Serpiente to geniusz taktyki. Jej obrona jest równie niebezpieczna co atak.');
-        });
-
-        const fuegoBtn = document.getElementById('fuego-btn');
-        fuegoBtn.addEventListener('click', function() {
-            alert('El Fuego rośnie w siłę, gdy jest atakowany. Im więcej obrażeń, tym silniejszy!');
-        });
-
     </script>
 </body>
 </html>
