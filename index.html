@@ -172,9 +172,12 @@
 
             </div>
 
-            <div class="text-center mt-12">
+            <div class="text-center mt-12 space-x-4">
                 <button id="start-btn" class="bg-gray-700 text-gray-400 font-bold py-3 px-8 rounded-full text-xl opacity-50 cursor-not-allowed transition-all" disabled>
                     Rozpocznij Walkę
+                </button>
+                <button id="ai-vs-ai-btn" class="bg-gray-700 text-gray-400 font-bold py-3 px-8 rounded-full text-xl opacity-50 cursor-not-allowed transition-all" disabled>
+                    Tryb AI vs AI
                 </button>
             </div>
         </main>
@@ -292,12 +295,13 @@
         let enthusiasm = 5;
         let currentMovementCard = null;
         let playerCardPlayed = null;
-        let opponentCardPlayed = null;
         let turnInProgress = false;
         let gameLog = [];
+        let isAIVsAI = false;
 
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
+        const aiVsAIBtn = document.getElementById('ai-vs-ai-btn');
         const characterSelectionContainer = document.getElementById('character-selection-container');
         const gameContainer = document.getElementById('game-container');
         const gameStatusEl = document.getElementById('game-status');
@@ -362,10 +366,14 @@
         function showSummary(summaryText) {
             summaryContentEl.innerHTML = summaryText;
             turnSummaryModal.classList.remove('hidden');
+            if (isAIVsAI) {
+                setTimeout(hideSummary, 2000);
+            }
         }
 
         function hideSummary() {
             turnSummaryModal.classList.add('hidden');
+            nextTurn();
         }
 
         function initializeGame() {
@@ -381,7 +389,8 @@
             
             selectedCharacterNames.forEach(name => {
                 const playerCharacter = availableCharacters.find(c => c.name === name);
-                players.push({ ...playerCharacter, type: 'human' });
+                const playerType = isAIVsAI ? 'ai' : 'human';
+                players.push({ ...playerCharacter, type: playerType });
                 availableCharacters = availableCharacters.filter(c => c.name !== name);
             });
 
@@ -394,6 +403,8 @@
                     break;
                 }
             }
+            
+            players.sort(() => Math.random() - 0.5);
 
             players.forEach(p => p.currentStats = { ...p.stats });
 
@@ -461,8 +472,8 @@
                     if (boardState[i].type === 'human') {
                         span.className += ' player-token';
                         span.draggable = true;
-                    } else if (boardState[i].type === 'ai') {
-                        span.className += ' opponent-token';
+                    } else {
+                        span.className += ' ai-token';
                     }
                     cell.appendChild(span);
                 }
@@ -640,7 +651,11 @@
 
             playerUsedCard = true;
             
-            const opponents = players.filter(p => p.id !== player.id);
+            const opponents = players.filter(p => p.id !== player.id && p.onBoard);
+            if (opponents.length === 0) {
+                 endGame(player);
+                 return;
+            }
             const target = opponents[Math.random() * opponents.length | 0];
 
             if (card.category === 'atak') {
@@ -702,11 +717,15 @@
                  const moveCards = CARD_DECK.filter(c => c.category === 'ruch');
                  const aiMoveCard = moveCards[Math.random() * moveCards.length | 0];
                  
-                 const humanPlayers = players.filter(p => p.type === 'human');
-                 const targetHuman = humanPlayers[Math.random() * humanPlayers.length | 0];
+                 const opponents = players.filter(p => p.id !== currentPlayer.id);
+                 if (opponents.length === 0) {
+                      endGame(currentPlayer);
+                      return;
+                 }
+                 const target = opponents[Math.random() * opponents.length | 0];
 
-                 const dx = Math.sign((playerPositions[targetHuman.id] % BOARD_WIDTH) - (playerPositions[currentPlayer.id] % BOARD_WIDTH));
-                 const dy = Math.sign(Math.floor(playerPositions[targetHuman.id] / BOARD_WIDTH) - Math.floor(playerPositions[currentPlayer.id] / BOARD_WIDTH));
+                 const dx = Math.sign((playerPositions[target.id] % BOARD_WIDTH) - (playerPositions[currentPlayer.id] % BOARD_WIDTH));
+                 const dy = Math.sign(Math.floor(playerPositions[target.id] / BOARD_WIDTH) - Math.floor(playerPositions[currentPlayer.id] / BOARD_WIDTH));
                  let newPos = playerPositions[currentPlayer.id];
 
                  if (dx !== 0) {
@@ -733,21 +752,21 @@
                      commentary += `<p><strong>${currentPlayer.name}</strong> nie mógł się ruszyć.</p>`;
                  }
                  
-                 if (Math.abs(playerPositions[currentPlayer.id] - playerPositions[targetHuman.id]) <= 1) {
+                 if (Math.abs(playerPositions[currentPlayer.id] - playerPositions[target.id]) <= 1) {
                      const attackCards = CARD_DECK.filter(c => c.category === 'atak');
                      const aiAttackCard = attackCards[Math.random() * attackCards.length | 0];
 
                      const attackPower = currentPlayer.currentStats.sila + (aiAttackCard.power || 0);
-                     let defensePower = targetHuman.currentStats.obrona;
+                     let defensePower = target.currentStats.obrona;
                      
                      commentary += `<p>${getCommentary('attack')} <strong>${currentPlayer.name}</strong> uderza z siłą ${attackPower}!</p>`;
-                     commentary += `<p><strong>${targetHuman.name}</strong> próbuje się bronić! </p>`;
+                     commentary += `<p><strong>${target.name}</strong> próbuje się bronić! </p>`;
                      
                      if (attackPower > defensePower) {
                          const pushResult = attackPower - defensePower;
-                         commentary += resolvePush(currentPlayer, targetHuman, pushResult);
+                         commentary += resolvePush(currentPlayer, target, pushResult);
                      } else {
-                         commentary += `<p><strong>${targetHuman.name}</strong> obronił się! To był imponujący blok.</p>`;
+                         commentary += `<p><strong>${target.name}</strong> obronił się! To był imponujący blok.</p>`;
                          updateEnthusiasm(1);
                      }
                  } else {
@@ -757,11 +776,19 @@
                  renderBoard();
                  showSummary(commentary);
                  turnInProgress = false;
-             }, 1000);
+             }, 2000);
         }
 
         function startTurn() {
-            const currentPlayer = players[currentPlayerIndex];
+            const activePlayers = players.filter(p => playerPositions[p.id] !== undefined && playerPositions[p.id] !== null);
+            if (activePlayers.length <= 1) {
+                endGame(activePlayers[0]);
+                return;
+            }
+
+            const currentPlayer = activePlayers[currentPlayerIndex % activePlayers.length];
+            currentPlayerIndex = (currentPlayerIndex + 1) % activePlayers.length;
+            
             updatePlayerInfoDisplay();
 
             if (currentPlayer.type === 'human') {
@@ -771,10 +798,12 @@
                 gameStatusEl.innerText = `Twoja kolej, ${currentPlayer.name}! Wybierz kartę ruchu.`;
                 drawActionCards('ruch');
                 playerHandContainer.classList.remove('hidden');
+                nextTurnBtn.classList.remove('hidden');
             } else {
                 playerHandContainer.classList.add('hidden');
                 gameStatusEl.innerText = `Tura zawodnika: ${currentPlayer.name}`;
                 aiTurn();
+                nextTurnBtn.classList.add('hidden');
             }
 
             if (enthusiasm >= 8) {
@@ -783,7 +812,6 @@
         }
 
         function nextTurn() {
-            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
             startTurn();
         }
 
@@ -792,7 +820,7 @@
             endGameContainer.classList.remove('hidden');
             if (winner) {
                 endGameTitleEl.innerText = "Zwycięstwo!";
-                endGameMessageEl.innerText = `Gratulacje! Wygrałeś walkę jako ${winner.name}!`;
+                endGameMessageEl.innerText = `Gratulacje! Wygrał ${winner.name}!`;
             } else {
                 endGameTitleEl.innerText = "Koniec Walki!";
                 endGameMessageEl.innerText = `Wszyscy wypadli poza ring!`;
@@ -818,7 +846,29 @@
             startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
             finisherUsed = false;
             enthusiasm = 5;
+            isAIVsAI = false;
             updateEnthusiasm(0);
+        }
+
+        function updateButtons() {
+             const selectedCount = document.querySelectorAll('.character-card.selected').length;
+                if (selectedCount >= 2 && selectedCount <= 4) {
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                    startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
+                    
+                    aiVsAIBtn.disabled = false;
+                    aiVsAIBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                    aiVsAIBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                } else {
+                    startBtn.disabled = true;
+                    startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
+                    startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                    
+                    aiVsAIBtn.disabled = true;
+                    aiVsAIBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    aiVsAIBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                }
         }
 
         characterCards.forEach(card => {
@@ -831,26 +881,26 @@
                         card.classList.add('selected');
                     }
                 }
-                
-                const newSelectedCount = document.querySelectorAll('.character-card.selected').length;
-                if (newSelectedCount >= 2 && newSelectedCount <= 4) {
-                    startBtn.disabled = false;
-                    startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
-                    startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
-                } else {
-                    startBtn.disabled = true;
-                    startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
-                    startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
-                }
+                updateButtons();
             });
         });
 
         startBtn.addEventListener('click', () => {
             const selectedCount = document.querySelectorAll('.character-card.selected').length;
             if (selectedCount >= 2 && selectedCount <= 4) {
+                isAIVsAI = false;
                 characterSelectionContainer.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
-                
+                initializeGame();
+            }
+        });
+        
+        aiVsAIBtn.addEventListener('click', () => {
+            const selectedCount = document.querySelectorAll('.character-card.selected').length;
+            if (selectedCount >= 2 && selectedCount <= 4) {
+                isAIVsAI = true;
+                characterSelectionContainer.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
                 initializeGame();
             }
         });
@@ -858,7 +908,6 @@
         restartBtn.addEventListener('click', restartGame);
         nextTurnBtn.addEventListener('click', () => {
             hideSummary();
-            nextTurn();
         });
 
         ringGridEl.addEventListener('dragover', (e) => {
@@ -871,8 +920,6 @@
                 const currentPlayerPos = playerPositions[currentPlayer.id];
                 const currentX = currentPlayerPos % BOARD_WIDTH;
                 const currentY = Math.floor(currentPlayerPos / BOARD_WIDTH);
-                const targetX = targetPos % BOARD_WIDTH;
-                const targetY = Math.floor(targetPos / BOARD_WIDTH);
                 const straightDistance = Math.max(Math.abs(currentX - targetX), Math.abs(currentY - targetY));
 
                 let validMove = false;
