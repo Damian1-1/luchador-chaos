@@ -301,6 +301,7 @@
         let playerCardPlayed = null;
         let opponentCardPlayed = null;
         let turnInProgress = false;
+        let gameLog = [];
 
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
@@ -342,13 +343,27 @@
 
         function getCommentary(type) {
             const comments = COMMENTARY[type];
-            return comments[Math.floor(Math.random() * comments.length)];
+            return comments[Math.random() * comments.length | 0];
+        }
+
+        function logEvent(event) {
+            gameLog.push(event);
+            console.log("--- LOG EVENT ---");
+            console.log(event);
+            console.log("-----------------");
         }
 
         function updateEnthusiasm(change) {
+            const oldValue = enthusiasm;
             enthusiasm = Math.max(0, Math.min(10, enthusiasm + change));
             enthusiasmValueEl.innerText = enthusiasm;
             enthusiasmBarEl.style.width = `${enthusiasm * 10}%`;
+            logEvent({
+                type: 'enthusiasm_change',
+                change: change,
+                old_value: oldValue,
+                new_value: enthusiasm
+            });
         }
 
         function showSummary(summaryText) {
@@ -361,12 +376,21 @@
         }
 
         function initializeGame() {
+            gameLog = [];
+            logEvent({ type: 'game_start', timestamp: new Date() });
+
             const selectedCharacterEl = document.querySelector('.character-card.selected');
             const characterName = selectedCharacterEl.getAttribute('data-character');
             player = CHARACTERS.find(c => c.name === characterName);
             
             const availableOpponents = CHARACTERS.filter(c => c.name !== player.name);
             opponent = { ...availableOpponents[Math.random() * availableOpponents.length | 0] };
+            
+            logEvent({
+                type: 'player_selection',
+                player: player.name,
+                opponent: opponent.name
+            });
 
             player.currentStats = { ...player.stats };
             opponent.currentStats = { ...opponent.stats };
@@ -403,6 +427,13 @@
 
             boardState[playerPos] = player;
             boardState[opponentPos] = opponent;
+
+            logEvent({
+                type: 'initial_setup',
+                player_pos: playerPos,
+                opponent_pos: opponentPos,
+                board_items: boardState.map((item, index) => item ? { type: item.type, pos: index } : null).filter(Boolean)
+            });
 
             renderBoard();
             updateStatsDisplay();
@@ -476,6 +507,11 @@
                 });
                 playerHandEl.appendChild(cardEl);
             });
+            logEvent({
+                type: 'draw_cards',
+                player: player.name,
+                cards_drawn: cardsToDraw.map(c => c.name)
+            });
         }
         
         function highlightMovementCells(movementPower, isDiagonal, isJump) {
@@ -523,12 +559,70 @@
             
             return { dirX, dirY };
         }
+        
+        function resolvePush(pusher, pushed, pushDistance) {
+            let commentary = '';
+            const pusherPos = (pusher === player) ? playerPos : opponentPos;
+            const pushedPos = (pushed === player) ? playerPos : opponentPos;
+            
+            const { dirX, dirY } = calculatePushDirection(pusherPos, pushedPos);
+            
+            let newPushedPos = pushedPos;
+            let movedDistance = 0;
+            
+            for (let i = 0; i < pushDistance; i++) {
+                const nextPos = newPushedPos + dirX + (dirY * BOARD_WIDTH);
+                
+                const nextX = nextPos % BOARD_WIDTH;
+                const nextY = Math.floor(nextPos / BOARD_WIDTH);
+                
+                // Sprawdzamy, czy następne pole jest w ringu
+                if (nextX >= 0 && nextX < BOARD_WIDTH && nextY >= 0 && nextY < BOARD_WIDTH) {
+                    newPushedPos = nextPos;
+                    movedDistance++;
+                } else {
+                    commentary += `<p><strong>${pushed.name}</strong> został wypchnięty na krawędź ringu! Utrata równowagi, ale nie wypadł!</p>`;
+                    break;
+                }
+            }
+            
+            if (movedDistance > 0) {
+                boardState[pushedPos] = null;
+                if (pushed === player) {
+                    playerPos = newPushedPos;
+                } else {
+                    opponentPos = newPushedPos;
+                }
+                boardState[newPushedPos] = pushed;
+                commentary += `<p>${getCommentary('push')} <strong>${pushed.name}</strong> został wypchnięty o ${movedDistance} pola!</p>`;
+                logEvent({
+                    type: 'push_resolved',
+                    pusher: pusher.name,
+                    pushed: pushed.name,
+                    old_pos: pushedPos,
+                    new_pos: newPushedPos,
+                    distance: movedDistance
+                });
+                updateEnthusiasm(3);
+            } else {
+                commentary += `<p><strong>${pushed.name}</strong> obronił się, nie ruszając się z miejsca.</p>`;
+                updateEnthusiasm(1);
+            }
+            
+            return commentary;
+        }
 
         function useCard(card) {
             turnInProgress = true;
             playerCardPlayed = card;
             playerHandContainer.classList.add('hidden');
             let commentary = `<p class="text-white text-xl font-bold">${getCommentary('start')}</p><br>`;
+            
+            logEvent({
+                type: 'player_action',
+                player: player.name,
+                card_played: card.name
+            });
             
             if (card.category === 'ruch' && !playerMoved) {
                 currentMovementCard = card;
@@ -546,16 +640,13 @@
             const opponentCards = CARD_DECK.filter(c => c.category === 'atak' || c.category === 'obrona' || c.category === 'chaos');
             opponentCardPlayed = opponentCards[Math.random() * opponentCards.length | 0];
 
+            logEvent({
+                type: 'ai_action_blind',
+                opponent: opponent.name,
+                card_selected: opponentCardPlayed.name
+            });
+
             // Faza rozstrzygnięcia
-            
-            // 1. Ruchy
-            if (playerMoved) {
-                commentary += `<p><strong>${player.name}</strong> używa karty ruchu: <strong>${playerCardPlayed.name}</strong>. Porusza się do przodu.</p>`;
-            } else {
-                 commentary += `<p><strong>${player.name}</strong> decyduje się na inną akcję!</p>`;
-            }
-            
-            // 2. Ataki i Obrony
             setTimeout(() => {
                 if (playerCardPlayed.category === 'atak' && Math.abs(playerPos - opponentPos) <= 1) {
                     const attackPower = playerCardPlayed.power + player.currentStats.sila;
@@ -571,28 +662,7 @@
                     
                     const pushResult = attackPower - defensePower;
                     if (pushResult > 0) {
-                         const pushDistance = pushResult;
-                         const { dirX, dirY } = calculatePushDirection(playerPos, opponentPos);
-                         
-                         let newOpponentPos = opponentPos;
-                         for (let i = 0; i < pushDistance; i++) {
-                             const nextPos = newOpponentPos + dirX + (dirY * BOARD_WIDTH);
-                             if (nextPos >= 0 && nextPos < BOARD_SIZE) {
-                                 newOpponentPos = nextPos;
-                             } else {
-                                 endGame(player);
-                                 commentary += `<p>${getCommentary('fall')} <strong>${opponent.name}</strong> wypada poza ring! Zwycięstwo!</p>`;
-                                 turnInProgress = false;
-                                 return;
-                             }
-                         }
-                         
-                         boardState[opponentPos] = null;
-                         opponentPos = newOpponentPos;
-                         boardState[opponentPos] = opponent;
-                         
-                         commentary += `<p>${getCommentary('push')} <strong>${player.name}</strong> wypycha <strong>${opponent.name}</strong> o ${pushDistance} pola!</p>`;
-                         updateEnthusiasm(3);
+                         commentary += resolvePush(player, opponent, pushResult);
                     } else {
                         commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
                         updateEnthusiasm(1);
@@ -611,28 +681,7 @@
 
                     const pushResult = attackPower - defensePower;
                     if (pushResult > 0) {
-                         const pushDistance = pushResult;
-                         const { dirX, dirY } = calculatePushDirection(opponentPos, playerPos);
-                         
-                         let newPlayerPos = playerPos;
-                         for (let i = 0; i < pushDistance; i++) {
-                             const nextPos = newPlayerPos + dirX + (dirY * BOARD_WIDTH);
-                             if (nextPos >= 0 && nextPos < BOARD_SIZE) {
-                                 newPlayerPos = nextPos;
-                             } else {
-                                 endGame(opponent);
-                                 commentary += `<p>${getCommentary('fall')} <strong>${player.name}</strong> wypada poza ring! Porażka!</p>`;
-                                 turnInProgress = false;
-                                 return;
-                             }
-                         }
-                         
-                         boardState[playerPos] = null;
-                         playerPos = newPlayerPos;
-                         boardState[playerPos] = player;
-                         
-                         commentary += `<p>${getCommentary('push')} <strong>${opponent.name}</strong> wypycha <strong>${player.name}</strong> o ${pushDistance} pola!</p>`;
-                         updateEnthusiasm(3);
+                         commentary += resolvePush(opponent, player, pushResult);
                     } else {
                         commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
                         updateEnthusiasm(1);
@@ -640,10 +689,12 @@
 
                 } else if (playerCardPlayed.category === 'chaos') {
                     commentary += `<p>${getCommentary('chaos')} <strong>${player.name}</strong> wywołuje chaos na planszy!</p>`;
+                    // Implementacja efektów chaosu
+                } else {
+                    commentary += `<p>Nie doszło do bezpośredniego starcia. Gracze przygotowują się do następnej rundy.</p>`;
                 }
                 
                 renderBoard();
-                
                 showSummary(commentary);
                 turnInProgress = false;
             }, 1000);
@@ -658,26 +709,13 @@
             updateEnthusiasm(4);
             finisherUsed = true;
             
-            const { dirX, dirY } = calculatePushDirection(playerPos, opponentPos);
-            let newOpponentPos = opponentPos;
-            for (let i = 0; i < 3; i++) {
-                 const nextPos = newOpponentPos + dirX + (dirY * BOARD_WIDTH);
-                 if (nextPos >= 0 && nextPos < BOARD_SIZE) {
-                     newOpponentPos = nextPos;
-                 } else {
-                     endGame(player);
-                     return;
-                 }
-            }
-            
-            boardState[opponentPos] = null;
-            opponentPos = newOpponentPos;
-            boardState[opponentPos] = opponent;
+            // Finisher zawsze wypycha o 3 pola
+            const commentary = resolvePush(player, opponent, 3);
             
             renderBoard();
             setTimeout(() => {
+                showSummary(`<p class="text-white text-xl font-bold">FINISHER!</p><br>${commentary}`);
                 turnInProgress = false;
-                opponentTurn();
             }, 2000);
         }
 
@@ -720,6 +758,13 @@
                  }
 
                  let commentary = `<p class="text-white text-xl font-bold">${getCommentary('start')}</p><br>`;
+                 
+                 logEvent({
+                     type: 'ai_turn',
+                     opponent: opponent.name,
+                     move_card_selected: opponentMoveCard.name,
+                     start_pos: opponentPos
+                 });
 
                  if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE && boardState[newOpponentPos] === null) {
                     boardState[opponentPos] = null;
@@ -743,28 +788,8 @@
                      commentary += `<p><strong>${player.name}</strong> próbuje się bronić! </p>`;
                      
                      if (attackPower > defensePower) {
-                         const pushDistance = attackPower - defensePower;
-                         const { dirX, dirY } = calculatePushDirection(opponentPos, playerPos);
-                         
-                         let newPlayerPos = playerPos;
-                         for (let i = 0; i < pushDistance; i++) {
-                             const nextPos = newPlayerPos + dirX + (dirY * BOARD_WIDTH);
-                             if (nextPos >= 0 && nextPos < BOARD_SIZE) {
-                                 newPlayerPos = nextPos;
-                             } else {
-                                 endGame(opponent);
-                                 commentary += `<p>${getCommentary('fall')} <strong>${player.name}</strong> wypada poza ring! Koniec walki!</p>`;
-                                 turnInProgress = false;
-                                 return;
-                             }
-                         }
-                         
-                         boardState[playerPos] = null;
-                         playerPos = newPlayerPos;
-                         boardState[playerPos] = player;
-                         
-                         commentary += `<p>${getCommentary('push')} <strong>${opponent.name}</strong> wypycha <strong>${player.name}</strong> o ${pushDistance} pola!</p>`;
-                         updateEnthusiasm(3);
+                         const pushResult = attackPower - defensePower;
+                         commentary += resolvePush(opponent, player, pushResult);
                      } else {
                          commentary += `<p><strong>${player.name}</strong> obronił się! To był imponujący blok.</p>`;
                          updateEnthusiasm(1);
@@ -802,6 +827,12 @@
                 endGameTitleEl.innerText = "Porażka!";
                 endGameMessageEl.innerText = `Niestety, przegrałeś. ${opponent.name} okazał się lepszy.`;
             }
+            logEvent({
+                type: 'game_end',
+                winner: winner.name,
+                reason: 'knockout'
+            });
+            console.log("Pełny log rozgrywki:", gameLog);
         }
 
         function restartGame() {
@@ -930,6 +961,13 @@
                             boardState[newPos] = player;
                             gameStatusEl.innerText = "Wpadłeś na banana! Poślizgnąłeś się!";
                             updateEnthusiasm(2);
+                            logEvent({
+                                type: 'trap_effect',
+                                player: player.name,
+                                trap: 'Banana Slip',
+                                old_pos: targetPos,
+                                new_pos: newPos
+                            });
                         } else {
                             playerPos = targetPos;
                             boardState[targetPos] = player;
