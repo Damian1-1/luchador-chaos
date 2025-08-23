@@ -158,7 +158,7 @@
                     <h3 class="text-3xl font-bold text-orange-500">Señorita Fuego</h3>
                     <p class="text-sm text-gray-400 mt-2">R: 3 | S: 2 | O: 2</p>
                     <p class="mt-4 text-gray-300">
-                        Zdolność: Ogień Publiczności - Dobiera kartę, gdy wygra starcie.
+                        Zdolność: Ogień Publiczności - Dobiera kartę, gdy wyga starcie.
                     </p>
                 </div>
                 
@@ -576,7 +576,6 @@
                 const nextX = nextPos % BOARD_WIDTH;
                 const nextY = Math.floor(nextPos / BOARD_WIDTH);
                 
-                // Sprawdzamy, czy następne pole jest w ringu
                 if (nextX >= 0 && nextX < BOARD_WIDTH && nextY >= 0 && nextY < BOARD_WIDTH) {
                     newPushedPos = nextPos;
                     movedDistance++;
@@ -636,7 +635,6 @@
 
             playerUsedCard = true;
             
-            // Faza akcji w ciemno - symulacja
             const opponentCards = CARD_DECK.filter(c => c.category === 'atak' || c.category === 'obrona' || c.category === 'chaos');
             opponentCardPlayed = opponentCards[Math.random() * opponentCards.length | 0];
 
@@ -646,7 +644,6 @@
                 card_selected: opponentCardPlayed.name
             });
 
-            // Faza rozstrzygnięcia
             setTimeout(() => {
                 if (playerCardPlayed.category === 'atak' && Math.abs(playerPos - opponentPos) <= 1) {
                     const attackPower = playerCardPlayed.power + player.currentStats.sila;
@@ -689,7 +686,6 @@
 
                 } else if (playerCardPlayed.category === 'chaos') {
                     commentary += `<p>${getCommentary('chaos')} <strong>${player.name}</strong> wywołuje chaos na planszy!</p>`;
-                    // Implementacja efektów chaosu
                 } else {
                     commentary += `<p>Nie doszło do bezpośredniego starcia. Gracze przygotowują się do następnej rundy.</p>`;
                 }
@@ -709,7 +705,6 @@
             updateEnthusiasm(4);
             finisherUsed = true;
             
-            // Finisher zawsze wypycha o 3 pola
             const commentary = resolvePush(player, opponent, 3);
             
             renderBoard();
@@ -744,7 +739,6 @@
              setTimeout(() => {
                  gameStatusEl.innerText = "Przeciwnik wykonał ruch i akcję. Czas na podsumowanie!";
                  
-                 // Symulacja ruchu i akcji przeciwnika
                  const moveCards = CARD_DECK.filter(c => c.category === 'ruch');
                  const opponentMoveCard = moveCards[Math.random() * moveCards.length | 0];
                  const dx = Math.sign((playerPos % BOARD_WIDTH) - (opponentPos % BOARD_WIDTH));
@@ -776,7 +770,6 @@
                      commentary += `<p><strong>${opponent.name}</strong> nie mógł się ruszyć.</p>`;
                  }
                  
-                 // Symulacja akcji przeciwnika
                  if (Math.abs(playerPos - opponentPos) <= 1) {
                      const attackCards = CARD_DECK.filter(c => c.category === 'atak');
                      const opponentAttackCard = attackCards[Math.random() * attackCards.length | 0];
