@@ -259,12 +259,12 @@
             { category: 'atak', name: 'Podcięcie', power: 1, effect: 'random', description: "Przeciwnik przesuwa się o 1 pole w losowym kierunku.", enthusiasm: 1 },
             { category: 'atak', name: 'Rzut z Liny', power: 1, description: "Odbijasz się od liny i wykonujesz ruch +1 pole oraz atak.", enthusiasm: 2},
             { category: 'atak', name: 'Rzut z Nawisu', power: 1, description: "Przeciwnik wypada razem z tobą... ale on zostaje wyeliminowany, a ty wracasz.", enthusiasm: 3},
+            { category: 'atak', name: 'Rzut Krzesłem', power: 1, effect: 'chair_attack', description: "Użyj krzesła, aby rzucić nim w przeciwnika. +1 do siły ataku.", enthusiasm: 2},
 
             { category: 'obrona', name: 'Blok', defense: 1, description: "Anulujesz jedno wypchnięcie.", enthusiasm: 0 },
             { category: 'obrona', name: 'Kontra', defense: -1, effect: 'counter', description: "Przesuwasz atakującego o 1 pole zamiast siebie.", enthusiasm: 1 },
             { category: 'obrona', name: 'Trzymanie się Liny', defense: 1, description: "Jeśli miałbyś wypaść, zostajesz na linie.", enthusiasm: 1},
 
-            { category: 'chaos', name: 'Rzut Krzesłem', effect: 'chair', description: "Wybierasz cel w zasięgu 2 pól; traci kartę lub cofa się o 1.", enthusiasm: 2 },
             { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole.", enthusiasm: 2 },
             { category: 'chaos', name: 'Sędzia Nie Patrzy', effect: 'judge_blind', description: "Możesz zrobić dodatkowe wypchnięcie, którego nie da się zablokować.", enthusiasm: 3},
 
@@ -275,15 +275,15 @@
 
         const BOARD_SIZE = 25;
         const BOARD_WIDTH = 5;
+        const OBJECT_COUNT = 3;
 
         const BOARD_ITEMS = {
-            'corner': { type: 'field', symbol: '🚩', bonus: { sila: 1 } },
-            'table': { type: 'item', symbol: '🪑', health: 2 },
-            'debris': { type: 'field', symbol: '💥', name: 'Gruzowisko' },
-            'chair': { type: 'item', symbol: '🪑', bonus: { sila: 1 } },
-            'barrier': { type: 'obstacle', symbol: '🚧' },
-            'banana': { type: 'trap', symbol: '🍌' }
+            'commentary_table': { type: 'item', symbol: '🎙️', name: 'Stół Komentatorski', health: 2 },
+            'chair': { type: 'item', symbol: '🪑', name: 'Krzesło', bonus: { sila: 1 }, effect: 'blocks_movement' },
+            'banana': { type: 'trap', symbol: '🍌', name: 'Banan', effect: 'slip' },
+            'ramp': { type: 'field', symbol: ' ramp', name: 'Rampa' }
         };
+        const BOARD_ITEM_SPAWN_CHANCE = 0.2;
 
         let players = [];
         let playerPositions = {};
@@ -422,27 +422,22 @@
                 ringGridEl.appendChild(cell);
             }
 
-            const cornerPositions = [0, 4, 20, 24];
-            boardState[2] = { ...BOARD_ITEMS.table };
-            boardState[22] = { ...BOARD_ITEMS.table };
-            boardState[12] = { type: 'field', symbol: '👑', name: 'Środek Ringu' };
-            boardState[6] = { ...BOARD_ITEMS.chair };
-            boardState[18] = { ...BOARD_ITEMS.chair };
-
-            cornerPositions.forEach(pos => {
-                boardState[pos] = { ...BOARD_ITEMS.corner };
-                document.getElementById(`cell-${pos}`).classList.add('corner');
-            });
-            document.getElementById('cell-2').classList.add('table');
-            document.getElementById('cell-22').classList.add('table');
-            document.getElementById('cell-6').classList.add('chair');
-            document.getElementById('cell-18').classList.add('chair');
-
-            let freePositions = [...Array(BOARD_SIZE).keys()].filter(pos => !boardState[pos]);
+            // Losowe rozmieszczenie obiektów specjalnych
+            const specialObjects = [BOARD_ITEMS.commentary_table, BOARD_ITEMS.chair, BOARD_ITEMS.banana];
+            const freePositions = [...Array(BOARD_SIZE).keys()].filter(pos => ![0, 4, 20, 24].includes(pos));
             freePositions.sort(() => Math.random() - 0.5);
+
+            for (let i = 0; i < OBJECT_COUNT; i++) {
+                const pos = freePositions.pop();
+                const object = specialObjects[Math.random() * specialObjects.length | 0];
+                boardState[pos] = { ...object, id: `obj-${i}` };
+            }
             
+            let playerFreePositions = [...Array(BOARD_SIZE).keys()].filter(pos => !boardState[pos]);
+            playerFreePositions.sort(() => Math.random() - 0.5);
+
             players.forEach((p, index) => {
-                const pos = freePositions[index];
+                const pos = playerFreePositions[index];
                 playerPositions[p.id] = pos;
                 boardState[pos] = p;
             });
@@ -464,17 +459,28 @@
             for (let i = 0; i < BOARD_SIZE; i++) {
                 const cell = document.getElementById(`cell-${i}`);
                 cell.innerHTML = '';
-                if (boardState[i]) {
-                    const content = boardState[i].symbol;
+                cell.className = 'ring-cell';
+                
+                const boardItem = boardState[i];
+                if (boardItem) {
+                    const content = boardItem.symbol;
                     const span = document.createElement('span');
                     span.innerText = content;
                     span.className = 'transition-transform duration-500 transform';
-                    if (boardState[i].type === 'human') {
+                    
+                    if (boardItem.type === 'human') {
                         span.className += ' player-token';
                         span.draggable = true;
-                    } else {
+                    } else if (boardItem.type === 'ai') {
                         span.className += ' ai-token';
                     }
+                    
+                    if (boardItem.name === BOARD_ITEMS.commentary_table.name) {
+                        cell.classList.add('table');
+                    } else if (boardItem.name === BOARD_ITEMS.chair.name) {
+                        cell.classList.add('chair');
+                    }
+                    
                     cell.appendChild(span);
                 }
             }
@@ -553,7 +559,10 @@
                     validMove = true;
                 }
                 
-                if (validMove && boardState[i] === null) {
+                const targetCell = boardState[i];
+                const isBlocked = targetCell && (targetCell.type === 'item' && targetCell.effect === 'blocks_movement' || targetCell.type === 'ai' || targetCell.type === 'human');
+                
+                if (validMove && !isBlocked) {
                     document.getElementById(`cell-${i}`).classList.add('cell-highlight');
                 }
             }
@@ -592,16 +601,30 @@
                 const nextX = nextPos % BOARD_WIDTH;
                 const nextY = Math.floor(nextPos / BOARD_WIDTH);
                 
-                if (nextX >= 0 && nextX < BOARD_WIDTH && nextY >= 0 && nextY < BOARD_WIDTH && boardState[nextPos] === null) {
-                    newPushedPos = nextPos;
-                    movedDistance++;
+                if (nextX >= 0 && nextX < BOARD_WIDTH && nextY >= 0 && nextY < BOARD_WIDTH) {
+                    const targetCell = boardState[nextPos];
+                    if (targetCell === null) {
+                         newPushedPos = nextPos;
+                         movedDistance++;
+                    } else if (targetCell.name === BOARD_ITEMS.commentary_table.name) {
+                         commentary += `<p><strong>${pushed.name}</strong> ląduje na stole komentatorskim! Stół się łamie!</p>`;
+                         updateEnthusiasm(2);
+                         boardState[nextPos] = null;
+                         newPushedPos = nextPos;
+                         movedDistance++;
+                    } else {
+                         commentary += `<p><strong>${pushed.name}</strong> zatrzymany przez obiekt! Utrata równowagi, ale nie wypadł!</p>`;
+                         break;
+                    }
                 } else {
-                    commentary += `<p><strong>${pushed.name}</strong> został wypchnięty na krawędź ringu! Utrata równowagi, ale nie wypadł!</p>`;
+                    commentary += `<p><strong>${pushed.name}</strong> wypadł poza ring!</p>`;
+                    boardState[pushedPos] = null;
+                    playerPositions[pushed.id] = null;
                     break;
                 }
             }
             
-            if (movedDistance > 0) {
+            if (movedDistance > 0 && playerPositions[pushed.id] !== null) {
                 boardState[pushedPos] = null;
                 playerPositions[pushed.id] = newPushedPos;
                 boardState[newPushedPos] = pushed;
@@ -615,7 +638,7 @@
                     distance: movedDistance
                 });
                 updateEnthusiasm(3);
-            } else {
+            } else if (playerPositions[pushed.id] !== null) {
                 commentary += `<p><strong>${pushed.name}</strong> obronił się, nie ruszając się z miejsca.</p>`;
                 updateEnthusiasm(1);
             }
@@ -651,7 +674,7 @@
 
             playerUsedCard = true;
             
-            const opponents = players.filter(p => p.id !== player.id && p.onBoard);
+            const opponents = players.filter(p => p.id !== player.id && playerPositions[p.id] !== null);
             if (opponents.length === 0) {
                  endGame(player);
                  return;
@@ -688,7 +711,11 @@
             if (turnInProgress) return;
             turnInProgress = true;
             
-            const opponents = players.filter(p => p.id !== player.id);
+            const opponents = players.filter(p => p.id !== player.id && playerPositions[p.id] !== null);
+            if (opponents.length === 0) {
+                endGame(player);
+                return;
+            }
             const target = opponents[Math.random() * opponents.length | 0];
             
             gameStatusEl.innerText = `${player.name} używa swojego finishera: ${player.finisher}!`;
@@ -717,13 +744,13 @@
                  const moveCards = CARD_DECK.filter(c => c.category === 'ruch');
                  const aiMoveCard = moveCards[Math.random() * moveCards.length | 0];
                  
-                 const opponents = players.filter(p => p.id !== currentPlayer.id);
+                 const opponents = players.filter(p => p.id !== currentPlayer.id && playerPositions[p.id] !== null);
                  if (opponents.length === 0) {
                       endGame(currentPlayer);
                       return;
                  }
                  const target = opponents[Math.random() * opponents.length | 0];
-
+                 
                  const dx = Math.sign((playerPositions[target.id] % BOARD_WIDTH) - (playerPositions[currentPlayer.id] % BOARD_WIDTH));
                  const dy = Math.sign(Math.floor(playerPositions[target.id] / BOARD_WIDTH) - Math.floor(playerPositions[currentPlayer.id] / BOARD_WIDTH));
                  let newPos = playerPositions[currentPlayer.id];
@@ -733,6 +760,9 @@
                  } else if (dy !== 0) {
                      newPos = playerPositions[currentPlayer.id] + (dy * BOARD_WIDTH);
                  }
+                 
+                 const targetCell = boardState[newPos];
+                 const isBlocked = targetCell && (targetCell.type === 'item' && targetCell.effect === 'blocks_movement' || targetCell.type === 'ai' || targetCell.type === 'human');
 
                  logEvent({
                      type: 'ai_turn_move',
@@ -742,7 +772,7 @@
                      target_pos: newPos
                  });
 
-                 if (newPos >= 0 && newPos < BOARD_SIZE && boardState[newPos] === null) {
+                 if (newPos >= 0 && newPos < BOARD_SIZE && !isBlocked) {
                     boardState[playerPositions[currentPlayer.id]] = null;
                     playerPositions[currentPlayer.id] = newPos;
                     boardState[newPos] = currentPlayer;
@@ -933,7 +963,10 @@
                     validMove = true;
                 }
                 
-                if (validMove && boardState[targetPos] === null) {
+                const targetCellContent = boardState[targetPos];
+                const isBlocked = targetCellContent && (targetCellContent.type === 'item' && targetCellContent.effect === 'blocks_movement' || targetCellContent.type === 'ai' || targetCellContent.type === 'human');
+                
+                if (validMove && !isBlocked) {
                     targetCell.classList.add('cell-highlight');
                 }
             }
@@ -958,8 +991,6 @@
                 const currentPlayerPos = playerPositions[currentPlayer.id];
                 const currentX = currentPlayerPos % BOARD_WIDTH;
                 const currentY = Math.floor(currentPlayerPos / BOARD_WIDTH);
-                const targetX = targetPos % BOARD_WIDTH;
-                const targetY = Math.floor(targetPos / BOARD_WIDTH);
                 const straightDistance = Math.max(Math.abs(currentX - targetX), Math.abs(currentY - targetY));
 
                 let validMove = false;
@@ -973,11 +1004,13 @@
                     validMove = true;
                 }
 
-                if (validMove && boardState[targetPos] === null) {
+                const targetCellContent = boardState[targetPos];
+                const isBlocked = targetCellContent && (targetCellContent.type === 'item' && targetCellContent.effect === 'blocks_movement' || targetCellContent.type === 'ai' || targetCellContent.type === 'human');
+                
+                if (validMove && !isBlocked) {
                     boardState[currentPlayerPos] = null;
                     
-                    const cellContent = boardState[targetPos];
-                    if (cellContent && cellContent.type === 'trap' && cellContent.symbol === '🍌') {
+                    if (targetCellContent && targetCellContent.type === 'trap' && targetCellContent.symbol === '🍌') {
                         let directions = [-BOARD_WIDTH, BOARD_WIDTH, -1, 1];
                         let randomDir = directions[Math.random() * directions.length | 0];
                         let newPos = targetPos + randomDir;
