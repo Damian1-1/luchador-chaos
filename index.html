@@ -88,6 +88,14 @@
             from { opacity: 0; transform: translate(-50%, -60%); }
             to { opacity: 1; transform: translate(-50%, -50%); }
         }
+
+        .card-chaos {
+            background-color: #8B0000;
+        }
+
+        .card-provocation {
+            background-color: #006400;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
@@ -265,12 +273,21 @@
             { category: 'obrona', name: 'Kontra', defense: -1, effect: 'counter', description: "Przesuwasz atakującego o 1 pole zamiast siebie.", enthusiasm: 1 },
             { category: 'obrona', name: 'Trzymanie się Liny', defense: 1, description: "Jeśli miałbyś wypaść, zostajesz na linie.", enthusiasm: 1},
 
-            { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole.", enthusiasm: 2 },
-            { category: 'chaos', name: 'Sędzia Nie Patrzy', effect: 'judge_blind', description: "Możesz zrobić dodatkowe wypchnięcie, którego nie da się zablokować.", enthusiasm: 3},
-
             { category: 'super', name: 'Podwójny Atak', power: 2, description: "Wykonujesz dwa różne ataki w tej samej turze.", enthusiasm: 3 },
             { category: 'super', name: 'Zmiana Pozycji', effect: 'swap', description: "Zamieniasz się miejscem z dowolnym graczem w zasięgu 3 pól.", enthusiasm: 3 },
             { category: 'super', name: 'Finisher Ready!', effect: 'finisher', description: "Możesz zagrać swój ruch kończący.", enthusiasm: 4 }
+        ];
+
+        const CHAOS_CARDS = [
+            { category: 'chaos', name: 'Sędzia Nie Patrzy', effect: 'judge_blind', description: "Możesz zrobić dodatkowe wypchnięcie, którego nie da się zablokować.", enthusiasm: 3},
+            { category: 'chaos', name: 'Rzut Krzesłem', effect: 'chair', description: "Wybierasz cel w zasięgu 2 pól; traci kartę lub cofa się o 1.", enthusiasm: 2 },
+            { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole.", enthusiasm: 2 },
+        ];
+
+        const PROVOCATION_CARDS = [
+            { category: 'provocation', name: 'Prowokacja', effect: 'provoke', description: "Prowokujesz przeciwnika. +1 do twojej Siły w tej rundzie.", enthusiasm: 2},
+            { category: 'provocation', name: 'Taniec Lucha Libre', effect: 'dance', description: "Wykonujesz taniec dla publiki. Dobierasz 1 kartę i zwiększasz entuzjazm o 2.", enthusiasm: 2},
+            { category: 'provocation', name: 'Rzut w Publikę', effect: 'throw_crowd', description: "Wyrzucasz obiekt z ringu w publikę. +3 do entuzjazmu.", enthusiasm: 3},
         ];
 
         const BOARD_SIZE = 25;
@@ -499,8 +516,17 @@
             playerHandEl.innerHTML = '';
             playerHandContainer.classList.remove('hidden');
 
-            const filteredDeck = CARD_DECK.filter(card => card.category === category || card.category === 'super' || card.category === 'chaos');
-            const shuffledDeck = [...filteredDeck].sort(() => 0.5 - Math.random());
+            let cardPool = CARD_DECK.filter(card => card.category === category);
+            
+            if (enthusiasm >= 8) {
+                cardPool = cardPool.concat(CHAOS_CARDS);
+            } else if (enthusiasm <= 2) {
+                cardPool = cardPool.concat(PROVOCATION_CARDS);
+            }
+            
+            cardPool = cardPool.concat(CARD_DECK.filter(card => card.category === 'super'));
+            
+            const shuffledDeck = [...cardPool].sort(() => 0.5 - Math.random());
             
             let cardsToDrawCount = 3;
             if (enthusiasm <= 2) {
@@ -516,7 +542,13 @@
             
             cardsToDraw.forEach(card => {
                 const cardEl = document.createElement('div');
-                cardEl.className = 'card bg-gray-700 p-4 rounded-lg text-center';
+                let cardClass = 'bg-gray-700';
+                if (card.category === 'chaos') {
+                    cardClass = 'card-chaos';
+                } else if (card.category === 'provocation') {
+                    cardClass = 'card-provocation';
+                }
+                cardEl.className = `card ${cardClass} p-4 rounded-lg text-center`;
                 cardEl.innerHTML = `
                     <h4 class="font-bold">${card.name}</h4>
                     <p class="text-sm text-gray-400">(${card.category})</p>
@@ -698,6 +730,10 @@
                 }
             } else if (card.category === 'chaos') {
                  commentary += `<p>${getCommentary('chaos')} <strong>${player.name}</strong> wywołuje chaos na planszy!</p>`;
+                 updateEnthusiasm(card.enthusiasm);
+            } else if (card.category === 'provocation') {
+                commentary += `<p><strong>${player.name}</strong> próbuje ożywić publikę!</p>`;
+                updateEnthusiasm(card.enthusiasm);
             } else {
                 commentary += `<p>Nie doszło do bezpośredniego starcia. Gracze przygotowują się do następnej rundy.</p>`;
             }
@@ -741,9 +777,14 @@
              setTimeout(() => {
                  let commentary = `<p class="text-white text-xl font-bold">Tura <strong>${currentPlayer.name}</strong></p><br>`;
                  
-                 const moveCards = CARD_DECK.filter(c => c.category === 'ruch');
-                 const aiMoveCard = moveCards[Math.random() * moveCards.length | 0];
-                 
+                 let cardPool = CARD_DECK.filter(c => c.category === 'ruch');
+                 if (enthusiasm >= 8) {
+                     cardPool = cardPool.concat(CHAOS_CARDS);
+                 } else if (enthusiasm <= 2) {
+                     cardPool = cardPool.concat(PROVOCATION_CARDS);
+                 }
+                 const aiCard = cardPool[Math.random() * cardPool.length | 0];
+
                  const opponents = players.filter(p => p.id !== currentPlayer.id && playerPositions[p.id] !== null);
                  if (opponents.length === 0) {
                       endGame(currentPlayer);
@@ -767,7 +808,7 @@
                  logEvent({
                      type: 'ai_turn_move',
                      player: currentPlayer.name,
-                     card_selected: aiMoveCard.name,
+                     card_selected: aiCard.name,
                      start_pos: playerPositions[currentPlayer.id],
                      target_pos: newPos
                  });
@@ -776,8 +817,8 @@
                     boardState[playerPositions[currentPlayer.id]] = null;
                     playerPositions[currentPlayer.id] = newPos;
                     boardState[newPos] = currentPlayer;
-                    commentary += `<p><strong>${currentPlayer.name}</strong> porusza się, używając karty ruchu: <strong>${aiMoveCard.name}</strong>.</p>`;
-                    updateEnthusiasm(aiMoveCard.enthusiasm);
+                    commentary += `<p><strong>${currentPlayer.name}</strong> porusza się, używając karty ruchu: <strong>${aiCard.name}</strong>.</p>`;
+                    updateEnthusiasm(aiCard.enthusiasm);
                  } else {
                      commentary += `<p><strong>${currentPlayer.name}</strong> nie mógł się ruszyć.</p>`;
                  }
