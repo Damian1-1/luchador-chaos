@@ -96,6 +96,10 @@
         .card-provocation {
             background-color: #006400;
         }
+        .zone-center { border: 2px solid yellow; }
+        .zone-inner { border: 2px solid lightgray; }
+        .zone-ropes { border: 2px solid orange; }
+        .zone-corner { border: 2px solid red; }
     </style>
 </head>
 <body class="bg-gray-900 text-white font-sans">
@@ -300,7 +304,6 @@
             'banana': { type: 'trap', symbol: '🍌', name: 'Banan', effect: 'slip' },
             'ramp': { type: 'field', symbol: ' ramp', name: 'Rampa' }
         };
-        const BOARD_ITEM_SPAWN_CHANCE = 0.2;
 
         let players = [];
         let playerPositions = {};
@@ -358,6 +361,16 @@
         function getCommentary(type) {
             const comments = COMMENTARY[type];
             return comments[Math.random() * comments.length | 0];
+        }
+
+        function getCellZone(position) {
+            const row = Math.floor(position / BOARD_WIDTH);
+            const col = position % BOARD_WIDTH;
+
+            if (row === 2 && col === 2) return 'center';
+            if ((row === 0 || row === 4) && (col === 0 || col === 4)) return 'corner';
+            if (row === 0 || row === 4 || col === 0 || col === 4) return 'ropes';
+            return 'inner';
         }
 
         function logEvent(event) {
@@ -500,6 +513,8 @@
                     
                     cell.appendChild(span);
                 }
+                const zone = getCellZone(i);
+                cell.classList.add(`zone-${zone}`);
             }
         }
 
@@ -640,7 +655,7 @@
                          movedDistance++;
                     } else if (targetCell.name === BOARD_ITEMS.commentary_table.name) {
                          commentary += `<p><strong>${pushed.name}</strong> ląduje na stole komentatorskim! Stół się łamie!</p>`;
-                         updateEnthusiasm(2);
+                         updateEnthusiasm(3);
                          boardState[nextPos] = null;
                          newPushedPos = nextPos;
                          movedDistance++;
@@ -714,10 +729,21 @@
             const target = opponents[Math.random() * opponents.length | 0];
 
             if (card.category === 'atak') {
-                const attackPower = card.power + player.currentStats.sila;
-                const defenseCard = CARD_DECK.filter(c => c.category === 'obrona')[Math.random() * CARD_DECK.filter(c => c.category === 'obrona').length | 0];
-                const defensePower = (defenseCard.defense || 0) + target.currentStats.obrona;
+                const attackerPosZone = getCellZone(playerPositions[player.id]);
+                const targetPosZone = getCellZone(playerPositions[target.id]);
                 
+                let attackPower = card.power + player.currentStats.sila;
+                let defensePower = target.currentStats.obrona;
+
+                if (targetPosZone === 'center' || targetPosZone === 'corner') {
+                     defensePower += 1;
+                }
+                
+                if (attackerPosZone === 'corner') {
+                    commentary += `<p><strong>${player.name}</strong> wykonuje spektakularny atak z narożnika!</p>`;
+                    updateEnthusiasm(2);
+                }
+
                 commentary += `<p>${getCommentary('attack')} <strong>${player.name}</strong> atakuje <strong>${target.name}</strong> z siłą ${attackPower}!</p>`;
                 commentary += `<p><strong>${target.name}</strong> broni się z siłą ${defensePower}!</p>`;
                 
@@ -1051,6 +1077,8 @@
                 if (validMove && !isBlocked) {
                     boardState[currentPlayerPos] = null;
                     
+                    const targetZone = getCellZone(targetPos);
+                    
                     if (targetCellContent && targetCellContent.type === 'trap' && targetCellContent.symbol === '🍌') {
                         let directions = [-BOARD_WIDTH, BOARD_WIDTH, -1, 1];
                         let randomDir = directions[Math.random() * directions.length | 0];
@@ -1078,7 +1106,7 @@
                     } else {
                         playerPositions[currentPlayer.id] = targetPos;
                         boardState[playerPositions[currentPlayer.id]] = currentPlayer;
-                         updateEnthusiasm(currentMovementCard.enthusiasm);
+                        updateEnthusiasm(currentMovementCard.enthusiasm);
                     }
                     
                     renderBoard();
