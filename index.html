@@ -113,7 +113,7 @@
                     <h3 class="text-3xl font-bold text-gray-400">Señor Sombrero</h3>
                     <p class="text-sm text-gray-400 mt-2">R: 3 | S: 2 | O: 1</p>
                     <p class="mt-4 text-gray-300">
-                        Zdolność: Publiczność go kocha - Dobiera dodatkową kartę przy linie.
+                        Zdolność: Publiczność go kocha - Dobiera dodatkową kartę, gdy entuzjazm publiki jest wysoki.
                     </p>
                 </div>
                 
@@ -164,6 +164,13 @@
             <div class="bg-gray-800 p-8 rounded-lg text-center">
                 <p id="game-status" class="text-2xl font-semibold mb-8"></p>
                 
+                <div class="mb-6">
+                    <h3 class="text-xl font-bold mb-2">Entuzjazm Publiki: <span id="enthusiasm-value">0</span></h3>
+                    <div class="w-full h-4 bg-gray-700 rounded-full overflow-hidden">
+                        <div id="enthusiasm-bar" class="h-full bg-yellow-400 transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+                </div>
+
                 <div class="ring-grid" id="ring-grid">
                 </div>
 
@@ -209,28 +216,28 @@
 
         const CARD_DECK = [
             // Ruch
-            { category: 'ruch', name: 'Krok Naprzód', power: 1, description: "Przesuwasz się o 1 pole." },
-            { category: 'ruch', name: 'Bieg', power: 2, description: "Przesuwasz się o 2 pola w linii prostej." },
-            { category: 'ruch', name: 'Skok', power: 2, description: "Przeskakujesz nad 1 polem (np. przeciwnikiem)." },
+            { category: 'ruch', name: 'Krok Naprzód', power: 1, description: "Przesuwasz się o 1 pole.", enthusiasm: 1 },
+            { category: 'ruch', name: 'Bieg', power: 2, description: "Przesuwasz się o 2 pola w linii prostej.", enthusiasm: 1 },
+            { category: 'ruch', name: 'Skok', power: 2, description: "Przeskakujesz nad 1 polem (np. przeciwnikiem).", enthusiasm: 2 },
 
             // Atak
-            { category: 'atak', name: 'Pchnięcie', power: 1, description: "Wypychasz przeciwnika o 1 pole." },
-            { category: 'atak', name: 'Super Pchnięcie', power: 2, description: "Wypychasz przeciwnika o 2 pola." },
-            { category: 'atak', name: 'Cios Pięścią', power: 0, effect: 'discard', description: "Przeciwnik traci 1 kartę z ręki." },
-            { category: 'atak', name: 'Podcięcie', power: 1, effect: 'random', description: "Przeciwnik przesuwa się o 1 pole w losowym kierunku." },
+            { category: 'atak', name: 'Pchnięcie', power: 1, description: "Wypychasz przeciwnika o 1 pole.", enthusiasm: 1 },
+            { category: 'atak', name: 'Super Pchnięcie', power: 2, description: "Wypychasz przeciwnika o 2 pola.", enthusiasm: 2 },
+            { category: 'atak', name: 'Cios Pięścią', power: 0, effect: 'discard', description: "Przeciwnik traci 1 kartę z ręki.", enthusiasm: 1 },
+            { category: 'atak', name: 'Podcięcie', power: 1, effect: 'random', description: "Przeciwnik przesuwa się o 1 pole w losowym kierunku.", enthusiasm: 1 },
 
             // Obrona
-            { category: 'obrona', name: 'Blok', defense: 1, description: "Anulujesz jedno wypchnięcie." },
-            { category: 'obrona', name: 'Kontra', defense: -1, effect: 'counter', description: "Przesuwasz atakującego o 1 pole zamiast siebie." },
+            { category: 'obrona', name: 'Blok', defense: 1, description: "Anulujesz jedno wypchnięcie.", enthusiasm: 0 },
+            { category: 'obrona', name: 'Kontra', defense: -1, effect: 'counter', description: "Przesuwasz atakującego o 1 pole zamiast siebie.", enthusiasm: 1 },
             
             // Chaos
-            { category: 'chaos', name: 'Rzut Krzesłem', effect: 'chair', description: "Wybierasz cel w zasięgu 2 pól; traci kartę lub cofa się o 1." },
-            { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole." },
+            { category: 'chaos', name: 'Rzut Krzesłem', effect: 'chair', description: "Wybierasz cel w zasięgu 2 pól; traci kartę lub cofa się o 1.", enthusiasm: 2 },
+            { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole.", enthusiasm: 2 },
 
             // Super
-            { category: 'super', name: 'Podwójny Atak', power: 2, description: "Wykonujesz dwa różne ataki w tej samej turze." },
-            { category: 'super', name: 'Zmiana Pozycji', effect: 'swap', description: "Zamieniasz się miejscem z dowolnym graczem w zasięgu 3 pól." },
-            { category: 'super', name: 'Finisher Ready!', effect: 'finisher', description: "Możesz zagrać swój ruch kończący." }
+            { category: 'super', name: 'Podwójny Atak', power: 2, description: "Wykonujesz dwa różne ataki w tej samej turze.", enthusiasm: 3 },
+            { category: 'super', name: 'Zmiana Pozycji', effect: 'swap', description: "Zamieniasz się miejscem z dowolnym graczem w zasięgu 3 pól.", enthusiasm: 3 },
+            { category: 'super', name: 'Finisher Ready!', effect: 'finisher', description: "Możesz zagrać swój ruch kończący.", enthusiasm: 4 }
         ];
 
         const BOARD_SIZE = 25;
@@ -253,6 +260,7 @@
         let isPlayerTurn = true;
         let playerMoved = false;
         let finisherUsed = false;
+        let enthusiasm = 5; // Początkowy entuzjazm
 
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
@@ -273,7 +281,30 @@
         const endGameTitleEl = document.getElementById('end-game-title');
         const endGameMessageEl = document.getElementById('end-game-message');
         const restartBtn = document.getElementById('restart-btn');
-        const finisherBtn = document.getElementById('finisher-btn');
+        const enthusiasmValueEl = document.getElementById('enthusiasm-value');
+        const enthusiasmBarEl = document.getElementById('enthusiasm-bar');
+
+        function updateEnthusiasm(change) {
+            enthusiasm = Math.max(0, Math.min(10, enthusiasm + change));
+            enthusiasmValueEl.innerText = enthusiasm;
+            enthusiasmBarEl.style.width = `${enthusiasm * 10}%`;
+            
+            let message = '';
+            if (enthusiasm <= 2) {
+                message = "Publika jest znudzona... Zróbcie coś!";
+                enthusiasmBarEl.classList.remove('bg-yellow-400', 'bg-red-500');
+                enthusiasmBarEl.classList.add('bg-gray-400');
+            } else if (enthusiasm >= 8) {
+                message = "Publika szaleje! OLE, OLE, OLE!";
+                enthusiasmBarEl.classList.remove('bg-yellow-400', 'bg-gray-400');
+                enthusiasmBarEl.classList.add('bg-red-500');
+            } else {
+                 message = "Publiczność jest podekscytowana!";
+                enthusiasmBarEl.classList.remove('bg-gray-400', 'bg-red-500');
+                enthusiasmBarEl.classList.add('bg-yellow-400');
+            }
+             gameStatusEl.innerText += `\n${message}`;
+        }
 
         function initializeGame() {
             const selectedCharacterEl = document.querySelector('.character-card.selected');
@@ -322,10 +353,10 @@
             renderBoard();
             updateStatsDisplay();
             playerHandContainer.classList.add('hidden');
-            finisherBtn.classList.add('hidden');
             gameStatusEl.innerText = `Twoja kolej! Wykonaj ruch. Zasięg: ${player.currentStats.ruch}`;
             isPlayerTurn = true;
             playerMoved = false;
+            updateEnthusiasm(0);
         }
 
         function renderBoard() {
@@ -359,7 +390,17 @@
             playerHandContainer.classList.remove('hidden');
             
             const shuffledDeck = [...CARD_DECK].sort(() => 0.5 - Math.random());
-            const cardsToDraw = shuffledDeck.slice(0, 3);
+            let cardsToDrawCount = 3;
+            if (enthusiasm <= 2) {
+                cardsToDrawCount = Math.max(1, cardsToDrawCount - 1);
+            } else if (enthusiasm >= 5 && enthusiasm <= 7) {
+                cardsToDrawCount = cardsToDrawCount + 1;
+            }
+            if (player.name === 'Señor Sombrero' && enthusiasm >= 7) {
+                cardsToDrawCount += 1;
+            }
+
+            const cardsToDraw = shuffledDeck.slice(0, cardsToDrawCount);
             
             cardsToDraw.forEach(card => {
                 const cardEl = document.createElement('div');
@@ -403,50 +444,40 @@
         function useCard(card) {
             playerHandContainer.classList.add('hidden');
             let actionTaken = false;
+            let enthusiasmChange = card.enthusiasm || 0;
 
-            if (card.category === 'ruch') {
-                // Ta kategoria kart nie jest jeszcze w pełni zaimplementowana,
-                // ale jest przygotowana na przyszłe rozszerzenia
-                gameStatusEl.innerText = `Używasz karty ruchu: ${card.name}!`;
-                actionTaken = true;
-            } else if (card.category === 'atak') {
-                let finalPower = player.currentStats.sila + (card.power || 0);
-
-                if (card.name === 'Cios Pięścią') {
-                     gameStatusEl.innerText = `Używasz Ciosu Pięścią! Przeciwnik traci kartę (ta funkcjonalność jest w trakcie rozwoju).`;
-                     actionTaken = true;
-                } else if (card.name === 'Podcięcie') {
-                    gameStatusEl.innerText = `Używasz Podcięcia! Przeciwnik przesuwa się w losowym kierunku (funkcjonalność w trakcie rozwoju).`;
-                    actionTaken = true;
-                } else {
-                    const distance = Math.abs(playerPos - opponentPos);
-                    if (distance <= 1) { 
-                        const pushDirection = Math.sign(opponentPos - playerPos);
-                        let pushDistance = finalPower;
-                        
-                        // Zdolności obronne
-                        if (opponent.name === 'Big Toro') { pushDistance -= 1; }
-                        if (opponent.name === 'Madre Montaña') { pushDistance = Math.min(pushDistance, 1); }
-                        
-                        const newOpponentPos = opponentPos + pushDistance * pushDirection;
-                        
-                        if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
-                            boardState[opponentPos] = null;
-                            opponentPos = newOpponentPos;
-                            boardState[opponentPos] = opponent;
-                            gameStatusEl.innerText = `Używasz ${card.name}! Wypychasz przeciwnika o ${pushDistance} pola!`;
-                            actionTaken = true;
-                        } else {
-                            endGame(player);
-                            actionTaken = true;
-                        }
+            if (card.category === 'atak') {
+                const distance = Math.abs(playerPos - opponentPos);
+                if (distance <= 1) { 
+                    const finalPower = player.currentStats.sila + (card.power || 0);
+                    const pushDirection = Math.sign(opponentPos - playerPos);
+                    let pushDistance = finalPower;
+                    
+                    if (opponent.name === 'Big Toro') { pushDistance -= 1; }
+                    if (opponent.name === 'Madre Montaña') { pushDistance = Math.min(pushDistance, 1); }
+                    
+                    const newOpponentPos = opponentPos + pushDistance * pushDirection;
+                    
+                    if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
+                        boardState[opponentPos] = null;
+                        opponentPos = newOpponentPos;
+                        boardState[opponentPos] = opponent;
+                        gameStatusEl.innerText = `Używasz ${card.name}! Wypychasz przeciwnika o ${pushDistance} pola!`;
+                        actionTaken = true;
                     } else {
-                        gameStatusEl.innerText = "Nie możesz zaatakować, przeciwnik jest poza zasięgiem.";
+                        endGame(player);
+                        actionTaken = true;
                     }
+                } else {
+                    gameStatusEl.innerText = "Nie możesz zaatakować, przeciwnik jest poza zasięgiem.";
                 }
+            } else if (card.category === 'ruch') {
+                 // Karty ruchu
+                gameStatusEl.innerText = `Używasz karty ruchu: ${card.name}! (efekt w trakcie rozwoju)`;
+                actionTaken = true;
             } else if (card.category === 'obrona') {
-                 // Karty obrony będą aktywne w turze przeciwnika
                 gameStatusEl.innerText = `Używasz karty obrony: ${card.name}! Czekasz na atak przeciwnika.`;
+                enthusiasmChange = -1;
                 actionTaken = true;
             } else if (card.category === 'chaos') {
                 if (card.name === 'Banana Slip') {
@@ -478,6 +509,7 @@
             }
 
             if (actionTaken) {
+                updateEnthusiasm(enthusiasmChange);
                 renderBoard();
                 setTimeout(opponentTurn, 1000);
             } else {
@@ -487,37 +519,19 @@
         }
 
         function useFinisher() {
-            // Tymczasowa logika finishera
             gameStatusEl.innerText = `${player.name} używa swojego finishera: ${player.finisher}!`;
-            finisherBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            finisherBtn.disabled = true;
+            updateEnthusiasm(4); // Bonus za finisher
+            finisherUsed = true;
             
-            // Efekty finisherów (uproszczone)
-            switch (player.finisher) {
-                case 'Skok Jaguara':
-                    const dx = Math.sign(opponentPos % BOARD_WIDTH - playerPos % BOARD_WIDTH);
-                    const dy = Math.sign(Math.floor(opponentPos / BOARD_WIDTH) - Math.floor(playerPos / BOARD_WIDTH));
-                    const newPos = playerPos + (dx * 2) + (dy * BOARD_WIDTH * 2);
-                    if (boardState[newPos] === null) {
-                        boardState[playerPos] = null;
-                        playerPos = newPos;
-                        boardState[playerPos] = player;
-                    }
-                    break;
-                case 'Bycze Rogi':
-                    const pushDirection = Math.sign(opponentPos - playerPos);
-                    const newOpponentPos = opponentPos + 3 * pushDirection;
-                    if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
-                        boardState[opponentPos] = null;
-                        opponentPos = newOpponentPos;
-                        boardState[opponentPos] = opponent;
-                    } else {
-                        endGame(player);
-                    }
-                    break;
-                // Tutaj można dodać logikę dla wszystkich innych finisherów
+            const pushDirection = Math.sign(opponentPos - playerPos);
+            const newOpponentPos = opponentPos + 3 * pushDirection;
+            if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
+                boardState[opponentPos] = null;
+                opponentPos = newOpponentPos;
+                boardState[opponentPos] = opponent;
+            } else {
+                endGame(player);
             }
-
             renderBoard();
             setTimeout(opponentTurn, 2000);
         }
@@ -525,7 +539,7 @@
         function opponentTurn() {
             gameStatusEl.innerText = "Tura przeciwnika...";
             isPlayerTurn = false;
-            
+
             // 1. Ruch przeciwnika
             let newOpponentPos = opponentPos;
             const targetPos = playerPos;
@@ -542,9 +556,9 @@
                 boardState[opponentPos] = null;
                 opponentPos = newOpponentPos;
                 boardState[opponentPos] = opponent;
+                updateEnthusiasm(1);
             } else {
-                 // Losowy ruch, jeśli nie ma wolnego miejsca
-                let randomDir = Math.floor(Math.random() * 4);
+                 let randomDir = Math.floor(Math.random() * 4);
                 let randNewPos = opponentPos;
                 switch(randomDir) {
                     case 0: randNewPos += BOARD_WIDTH; break;
@@ -556,6 +570,9 @@
                     boardState[opponentPos] = null;
                     opponentPos = randNewPos;
                     boardState[opponentPos] = opponent;
+                    updateEnthusiasm(0);
+                } else {
+                    updateEnthusiasm(-1);
                 }
             }
 
@@ -608,6 +625,12 @@
             playerMoved = false;
             gameStatusEl.innerText = "Twoja kolej! Wykonaj ruch. Zasięg: " + player.currentStats.ruch;
             highlightMovementCells();
+
+            if (enthusiasm >= 8) {
+                // Zdarzenie Szału
+                gameStatusEl.innerText += "\n¡Publika szaleje! Zdarzenie w trakcie rozwoju.";
+                // Tutaj można zaimplementować 'Wkurzona publika'
+            }
         }
 
         function endGame(winner) {
@@ -636,6 +659,8 @@
             startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
             startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
             finisherUsed = false;
+            enthusiasm = 5;
+            updateEnthusiasm(0);
         }
 
         characterCards.forEach(card => {
@@ -722,7 +747,6 @@
                     
                     const cellContent = boardState[targetPos];
                     if (cellContent && cellContent.type === 'trap' && cellContent.symbol === '🍌') {
-                        // Efekt banana
                         let directions = [-BOARD_WIDTH, BOARD_WIDTH, -1, 1];
                         let randomDir = directions[Math.floor(Math.random() * directions.length)];
                         let newPos = targetPos + randomDir;
@@ -731,15 +755,18 @@
                             playerPos = newPos;
                             boardState[newPos] = player;
                             gameStatusEl.innerText = "Wpadłeś na banana! Poślizgnąłeś się!";
+                            updateEnthusiasm(2);
                         } else {
                             playerPos = targetPos;
                             boardState[targetPos] = player;
                             gameStatusEl.innerText = "Wpadłeś na banana, ale uniknąłeś wypadku!";
+                             updateEnthusiasm(1);
                         }
-                        boardState[targetPos] = null; // Banan znika
+                        boardState[targetPos] = null;
                     } else {
                         playerPos = targetPos;
                         boardState[playerPos] = player;
+                         updateEnthusiasm(1);
                     }
                     
                     renderBoard();
