@@ -83,6 +83,38 @@
             text-align: left;
             animation: fadeIn 0.5s ease-out;
         }
+        
+        #game-summary-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .summary-content-container {
+            background-color: #1A202C;
+            border: 2px solid #FACC15;
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 90%;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .summary-log-entry {
+            background-color: #2D3748;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+        }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translate(-50%, -60%); }
@@ -245,6 +277,19 @@
                 </button>
             </div>
         </div>
+        
+        <div id="game-summary-modal" class="hidden">
+            <div class="summary-content-container">
+                <h3 class="text-3xl font-bold text-yellow-400 mb-4 text-center">Podsumowanie Rozgrywki</h3>
+                <div id="game-log-display" class="space-y-2 text-gray-300"></div>
+                <div class="text-center mt-6">
+                    <button id="close-summary-btn" class="bg-yellow-400 text-gray-900 font-bold py-2 px-6 rounded-full text-lg hover:bg-yellow-500 transition-colors">
+                        Zamknij
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -318,6 +363,7 @@
         let turnInProgress = false;
         let gameLog = [];
         let isAIVsAI = false;
+        let turnNumber = 1;
 
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
@@ -345,6 +391,9 @@
         const turnSummaryModal = document.getElementById('turn-summary-modal');
         const summaryContentEl = document.getElementById('summary-content');
         const nextTurnBtn = document.getElementById('next-turn-btn');
+        const gameSummaryModal = document.getElementById('game-summary-modal');
+        const gameLogDisplayEl = document.getElementById('game-log-display');
+        const closeSummaryBtn = document.getElementById('close-summary-btn');
 
         const COMMENTARY = {
             start: ["¡Vamos a la lucha!", "Niech zacznie się walka!", "Publiczność szaleje!", "Oto początek prawdziwej masakry!"],
@@ -374,6 +423,7 @@
         }
 
         function logEvent(event) {
+            event.turn = turnNumber;
             gameLog.push(event);
             console.log("--- LOG EVENT ---");
             console.log(event);
@@ -408,6 +458,7 @@
 
         function initializeGame() {
             gameLog = [];
+            turnNumber = 1;
             logEvent({ type: 'game_start', timestamp: new Date() });
 
             players = [];
@@ -475,7 +526,7 @@
             logEvent({
                 type: 'initial_setup',
                 player_positions: playerPositions,
-                board_items: boardState.map((item, index) => item ? { type: item.type, pos: index } : null).filter(Boolean)
+                board_items: boardState.map((item, index) => item ? { type: item.type, pos: index, name: item.name } : null).filter(Boolean)
             });
 
             renderBoard();
@@ -906,10 +957,42 @@
             if (enthusiasm >= 8) {
                 gameStatusEl.innerText += "\n¡Publika szaleje! Zdarzenie w trakcie rozwoju.";
             }
+            turnNumber++;
         }
 
         function nextTurn() {
             startTurn();
+        }
+
+        function showGameSummary() {
+            gameLogDisplayEl.innerHTML = '';
+            gameLog.forEach(log => {
+                const entry = document.createElement('div');
+                entry.className = 'summary-log-entry';
+                let content = `**Tura ${log.turn}** - `;
+                
+                if (log.type === 'game_start') {
+                    content += `Gra rozpoczęta.`;
+                } else if (log.type === 'player_setup') {
+                    content += `Zawodnicy gotowi: ${log.players.map(p => p.name).join(', ')}.`;
+                } else if (log.type === 'initial_setup') {
+                    content += `Plansza przygotowana.`;
+                } else if (log.type === 'player_action') {
+                    content += `**${log.player}** używa karty **${log.card_played}**.`;
+                } else if (log.type === 'push_resolved') {
+                    content += `**${log.pusher}** wypycha **${log.pushed}** o ${log.distance} pól!`;
+                } else if (log.type === 'elimination') {
+                    content += `**${log.player}** został wyeliminowany!`;
+                } else if (log.type === 'enthusiasm_change') {
+                    content += `Entuzjazm publiki zmienia się o ${log.change}. Nowy poziom: ${log.new_value}.`;
+                } else if (log.type === 'game_end') {
+                    content += `Koniec gry! Zwycięzca: **${log.winner || 'brak'}**.`;
+                }
+
+                entry.innerHTML = `<p class="font-bold">${content}</p>`;
+                gameLogDisplayEl.appendChild(entry);
+            });
+            gameSummaryModal.classList.remove('hidden');
         }
 
         function endGame(winner) {
@@ -922,15 +1005,19 @@
                 endGameTitleEl.innerText = "Koniec Walki!";
                 endGameMessageEl.innerText = `Wszyscy wypadli poza ring!`;
             }
+            
+            const remainingPlayers = players.filter(p => playerPositions[p.id] !== undefined && playerPositions[p.id] !== null).map(p => p.name);
             logEvent({
                 type: 'game_end',
-                winner: winner ? winner.name : 'none',
-                reason: 'knockout'
+                winner: winner ? winner.name : 'brak',
+                remaining_players: remainingPlayers
             });
-            console.log("Pełny log rozgrywki:", gameLog);
+            
+            showGameSummary();
         }
 
         function restartGame() {
+            gameSummaryModal.classList.add('hidden');
             endGameContainer.classList.add('hidden');
             characterSelectionContainer.classList.remove('hidden');
             
@@ -1005,6 +1092,9 @@
         restartBtn.addEventListener('click', restartGame);
         nextTurnBtn.addEventListener('click', () => {
             hideSummary();
+        });
+        closeSummaryBtn.addEventListener('click', () => {
+            gameSummaryModal.classList.add('hidden');
         });
 
         ringGridEl.addEventListener('dragover', (e) => {
