@@ -208,9 +208,29 @@
         ];
 
         const CARD_DECK = [
-            { type: 'atak', name: 'Mocne Wypchnięcie', power: 2, description: "Wypycha przeciwnika o 2 pola." },
-            { type: 'obrona', name: 'Drobny Blok', defense: 1, description: "Zwiększa obronę o 1 punkt w tej turze." },
-            { type: 'atak', name: 'Szybki Cios', power: 1, description: "Wypycha przeciwnika o 1 pole." },
+            // Ruch
+            { category: 'ruch', name: 'Krok Naprzód', power: 1, description: "Przesuwasz się o 1 pole." },
+            { category: 'ruch', name: 'Bieg', power: 2, description: "Przesuwasz się o 2 pola w linii prostej." },
+            { category: 'ruch', name: 'Skok', power: 2, description: "Przeskakujesz nad 1 polem (np. przeciwnikiem)." },
+
+            // Atak
+            { category: 'atak', name: 'Pchnięcie', power: 1, description: "Wypychasz przeciwnika o 1 pole." },
+            { category: 'atak', name: 'Super Pchnięcie', power: 2, description: "Wypychasz przeciwnika o 2 pola." },
+            { category: 'atak', name: 'Cios Pięścią', power: 0, effect: 'discard', description: "Przeciwnik traci 1 kartę z ręki." },
+            { category: 'atak', name: 'Podcięcie', power: 1, effect: 'random', description: "Przeciwnik przesuwa się o 1 pole w losowym kierunku." },
+
+            // Obrona
+            { category: 'obrona', name: 'Blok', defense: 1, description: "Anulujesz jedno wypchnięcie." },
+            { category: 'obrona', name: 'Kontra', defense: -1, effect: 'counter', description: "Przesuwasz atakującego o 1 pole zamiast siebie." },
+            
+            // Chaos
+            { category: 'chaos', name: 'Rzut Krzesłem', effect: 'chair', description: "Wybierasz cel w zasięgu 2 pól; traci kartę lub cofa się o 1." },
+            { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole." },
+
+            // Super
+            { category: 'super', name: 'Podwójny Atak', power: 2, description: "Wykonujesz dwa różne ataki w tej samej turze." },
+            { category: 'super', name: 'Zmiana Pozycji', effect: 'swap', description: "Zamieniasz się miejscem z dowolnym graczem w zasięgu 3 pól." },
+            { category: 'super', name: 'Finisher Ready!', effect: 'finisher', description: "Możesz zagrać swój ruch kończący." }
         ];
 
         const BOARD_SIZE = 25;
@@ -219,8 +239,10 @@
         const BOARD_ITEMS = {
             'corner': { type: 'field', symbol: '🚩', bonus: { sila: 1 } },
             'table': { type: 'item', symbol: '🪑', health: 2 },
+            'debris': { type: 'field', symbol: '💥', name: 'Gruzowisko' },
             'chair': { type: 'item', symbol: '🪑', bonus: { sila: 1 } },
-            'barrier': { type: 'obstacle', symbol: '🚧' }
+            'barrier': { type: 'obstacle', symbol: '🚧' },
+            'banana': { type: 'trap', symbol: '🍌' }
         };
 
         let player = null;
@@ -230,7 +252,7 @@
         let boardState = [];
         let isPlayerTurn = true;
         let playerMoved = false;
-        let playerFinisherReady = false;
+        let finisherUsed = false;
 
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
@@ -263,7 +285,6 @@
 
             player.currentStats = { ...player.stats };
             opponent.currentStats = { ...opponent.stats };
-            player.finisherUses = 1; // Uproszczone: jedna użycie finishera
 
             ringGridEl.innerHTML = '';
             boardState = new Array(BOARD_SIZE).fill(null);
@@ -287,7 +308,7 @@
             });
             document.getElementById('cell-2').classList.add('table');
             document.getElementById('cell-22').classList.add('table');
-            document.getElementById('cell-6').classList.classList.add('chair');
+            document.getElementById('cell-6').classList.add('chair');
             document.getElementById('cell-18').classList.add('chair');
 
             let freePositions = [...Array(BOARD_SIZE).keys()].filter(pos => !boardState[pos]);
@@ -345,7 +366,7 @@
                 cardEl.className = 'card bg-gray-700 p-4 rounded-lg text-center';
                 cardEl.innerHTML = `
                     <h4 class="font-bold">${card.name}</h4>
-                    <p class="text-sm text-gray-400">(${card.type})</p>
+                    <p class="text-sm text-gray-400">(${card.category})</p>
                     <p class="text-xs mt-2">${card.description}</p>
                 `;
                 cardEl.addEventListener('click', () => {
@@ -366,8 +387,14 @@
                 const targetX = i % BOARD_WIDTH;
                 const targetY = Math.floor(i / BOARD_WIDTH);
                 const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
-                
-                if (distance <= player.currentStats.ruch && boardState[i] === null) {
+
+                const isDiagonal = Math.abs(currentX - targetX) === Math.abs(currentY - targetY) && distance !== 0;
+
+                if (boardState[playerPos].name === 'El Jaguar' && isDiagonal && distance <= player.currentStats.ruch * 2) {
+                    if (boardState[i] === null) {
+                        document.getElementById(`cell-${i}`).classList.add('cell-highlight');
+                    }
+                } else if (distance <= player.currentStats.ruch && boardState[i] === null) {
                     document.getElementById(`cell-${i}`).classList.add('cell-highlight');
                 }
             }
@@ -376,65 +403,78 @@
         function useCard(card) {
             playerHandContainer.classList.add('hidden');
             let actionTaken = false;
-            let finalPower = player.currentStats.sila + (card.power || 0);
 
-            // Sprawdzenie premii za specjalne pola
-            if (boardState[playerPos] && boardState[playerPos].type === 'field' && boardState[playerPos].bonus && boardState[playerPos].bonus.sila) {
-                finalPower += boardState[playerPos].bonus.sila;
-            }
-            if (boardState[playerPos] && boardState[playerPos].type === 'item' && boardState[playerPos].bonus && boardState[playerPos].bonus.sila) {
-                finalPower += boardState[playerPos].bonus.sila;
-                boardState[playerPos] = null; // Krzesło znika po użyciu
-            }
+            if (card.category === 'ruch') {
+                // Ta kategoria kart nie jest jeszcze w pełni zaimplementowana,
+                // ale jest przygotowana na przyszłe rozszerzenia
+                gameStatusEl.innerText = `Używasz karty ruchu: ${card.name}!`;
+                actionTaken = true;
+            } else if (card.category === 'atak') {
+                let finalPower = player.currentStats.sila + (card.power || 0);
 
-            if (card.type === 'atak') {
-                const distance = Math.abs(playerPos - opponentPos);
-                if (distance <= 1) { // Uproszczony zasięg na 1 pole
-                    const pushDirection = Math.sign(opponentPos - playerPos);
-                    let pushDistance = finalPower;
-                    let opponentDefense = opponent.currentStats.obrona;
-
-                    // Zdolność Big Toro
-                    if (opponent.name === 'Big Toro') {
-                        pushDistance -= 1;
-                    }
-                    // Zdolność Madre Montaña
-                    if (opponent.name === 'Madre Montaña') {
-                        pushDistance = Math.min(pushDistance, 1);
-                    }
-                    
-                    const newOpponentPos = opponentPos + pushDistance * pushDirection;
-                    
-                    if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
-                        boardState[opponentPos] = null;
-                        opponentPos = newOpponentPos;
+                if (card.name === 'Cios Pięścią') {
+                     gameStatusEl.innerText = `Używasz Ciosu Pięścią! Przeciwnik traci kartę (ta funkcjonalność jest w trakcie rozwoju).`;
+                     actionTaken = true;
+                } else if (card.name === 'Podcięcie') {
+                    gameStatusEl.innerText = `Używasz Podcięcia! Przeciwnik przesuwa się w losowym kierunku (funkcjonalność w trakcie rozwoju).`;
+                    actionTaken = true;
+                } else {
+                    const distance = Math.abs(playerPos - opponentPos);
+                    if (distance <= 1) { 
+                        const pushDirection = Math.sign(opponentPos - playerPos);
+                        let pushDistance = finalPower;
                         
-                        // Kolizja z obiektami
-                        if (boardState[opponentPos] && boardState[opponentPos].type === 'item') {
-                            boardState[opponentPos].health--;
-                            if (boardState[opponentPos].health <= 0) {
-                                boardState[opponentPos] = { type: 'field', symbol: '💥', name: 'Gruzowisko' };
-                                document.getElementById(`cell-${opponentPos}`).classList.remove('table');
-                                document.getElementById(`cell-${opponentPos}`).classList.add('debris');
-                                gameStatusEl.innerText = `Uderzyłeś przeciwnika w stół! Został zniszczony!`;
-                            }
-                        } else {
+                        // Zdolności obronne
+                        if (opponent.name === 'Big Toro') { pushDistance -= 1; }
+                        if (opponent.name === 'Madre Montaña') { pushDistance = Math.min(pushDistance, 1); }
+                        
+                        const newOpponentPos = opponentPos + pushDistance * pushDirection;
+                        
+                        if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
+                            boardState[opponentPos] = null;
+                            opponentPos = newOpponentPos;
                             boardState[opponentPos] = opponent;
+                            gameStatusEl.innerText = `Używasz ${card.name}! Wypychasz przeciwnika o ${pushDistance} pola!`;
+                            actionTaken = true;
+                        } else {
+                            endGame(player);
+                            actionTaken = true;
                         }
-                        gameStatusEl.innerText = `Używasz ${card.name}! Wypychasz przeciwnika o ${pushDistance} pola!`;
+                    } else {
+                        gameStatusEl.innerText = "Nie możesz zaatakować, przeciwnik jest poza zasięgiem.";
+                    }
+                }
+            } else if (card.category === 'obrona') {
+                 // Karty obrony będą aktywne w turze przeciwnika
+                gameStatusEl.innerText = `Używasz karty obrony: ${card.name}! Czekasz na atak przeciwnika.`;
+                actionTaken = true;
+            } else if (card.category === 'chaos') {
+                if (card.name === 'Banana Slip') {
+                    let randomPos = Math.floor(Math.random() * BOARD_SIZE);
+                    if (boardState[randomPos] === null) {
+                        boardState[randomPos] = BOARD_ITEMS.banana;
+                        gameStatusEl.innerText = "Położyłeś banana na planszy! Uważaj!";
                         actionTaken = true;
                     } else {
-                        endGame(player);
-                        actionTaken = true;
+                        gameStatusEl.innerText = "Nie udało się położyć banana. Wybierz inną kartę.";
                     }
                 } else {
-                    gameStatusEl.innerText = "Nie możesz zaatakować, przeciwnik jest poza zasięgiem.";
+                    gameStatusEl.innerText = `Używasz karty chaosu: ${card.name}! (efekt w trakcie rozwoju)`;
+                    actionTaken = true;
                 }
-            } else if (card.type === 'obrona') {
-                player.currentStats.obrona += card.defense || 1;
-                updateStatsDisplay();
-                gameStatusEl.innerText = `Używasz ${card.name}. Twoja obrona wzrasta!`;
-                actionTaken = true;
+            } else if (card.category === 'super') {
+                if (card.name === 'Finisher Ready!') {
+                    if (!finisherUsed) {
+                        useFinisher();
+                        finisherUsed = true;
+                        actionTaken = true;
+                    } else {
+                        gameStatusEl.innerText = "Użyłeś już finishera w tej grze!";
+                    }
+                } else {
+                    gameStatusEl.innerText = `Używasz karty super: ${card.name}! (efekt w trakcie rozwoju)`;
+                    actionTaken = true;
+                }
             }
 
             if (actionTaken) {
@@ -447,38 +487,45 @@
         }
 
         function useFinisher() {
-            if (!playerFinisherReady) return;
+            // Tymczasowa logika finishera
+            gameStatusEl.innerText = `${player.name} używa swojego finishera: ${player.finisher}!`;
+            finisherBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            finisherBtn.disabled = true;
             
-            // Logika użycia finishera
-            let actionTaken = false;
-            let finisherUsed = false;
+            // Efekty finisherów (uproszczone)
+            switch (player.finisher) {
+                case 'Skok Jaguara':
+                    const dx = Math.sign(opponentPos % BOARD_WIDTH - playerPos % BOARD_WIDTH);
+                    const dy = Math.sign(Math.floor(opponentPos / BOARD_WIDTH) - Math.floor(playerPos / BOARD_WIDTH));
+                    const newPos = playerPos + (dx * 2) + (dy * BOARD_WIDTH * 2);
+                    if (boardState[newPos] === null) {
+                        boardState[playerPos] = null;
+                        playerPos = newPos;
+                        boardState[playerPos] = player;
+                    }
+                    break;
+                case 'Bycze Rogi':
+                    const pushDirection = Math.sign(opponentPos - playerPos);
+                    const newOpponentPos = opponentPos + 3 * pushDirection;
+                    if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
+                        boardState[opponentPos] = null;
+                        opponentPos = newOpponentPos;
+                        boardState[opponentPos] = opponent;
+                    } else {
+                        endGame(player);
+                    }
+                    break;
+                // Tutaj można dodać logikę dla wszystkich innych finisherów
+            }
 
-            if (player.finisher === 'Skok Jaguara' && Math.abs(playerPos - opponentPos) <= 2) {
-                // ... logika skoku i wypchnięcia o 3 pola
-                gameStatusEl.innerText = `El Jaguar używa Skoku Jaguara! Przeciwnik zostaje wypchnięty!`;
-                finisherUsed = true;
-            } else if (player.finisher === 'Bycze Rogi') {
-                 // ... logika biegu i wypchnięcia
-                gameStatusEl.innerText = `Big Toro używa Byczych Rogów!`;
-                finisherUsed = true;
-            }
-            
-            if (finisherUsed) {
-                playerFinisherReady = false;
-                finisherBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                finisherBtn.disabled = true;
-                renderBoard();
-                setTimeout(opponentTurn, 1000);
-            } else {
-                gameStatusEl.innerText = "Nie możesz użyć finishera w tej sytuacji.";
-            }
+            renderBoard();
+            setTimeout(opponentTurn, 2000);
         }
 
         function opponentTurn() {
             gameStatusEl.innerText = "Tura przeciwnika...";
             isPlayerTurn = false;
-            finisherBtn.classList.add('hidden');
-
+            
             // 1. Ruch przeciwnika
             let newOpponentPos = opponentPos;
             const targetPos = playerPos;
@@ -495,29 +542,41 @@
                 boardState[opponentPos] = null;
                 opponentPos = newOpponentPos;
                 boardState[opponentPos] = opponent;
+            } else {
+                 // Losowy ruch, jeśli nie ma wolnego miejsca
+                let randomDir = Math.floor(Math.random() * 4);
+                let randNewPos = opponentPos;
+                switch(randomDir) {
+                    case 0: randNewPos += BOARD_WIDTH; break;
+                    case 1: randNewPos -= BOARD_WIDTH; break;
+                    case 2: randNewPos += 1; break;
+                    case 3: randNewPos -= 1; break;
+                }
+                if (randNewPos >= 0 && randNewPos < BOARD_SIZE && boardState[randNewPos] === null) {
+                    boardState[opponentPos] = null;
+                    opponentPos = randNewPos;
+                    boardState[opponentPos] = opponent;
+                }
             }
 
             renderBoard();
 
             // 2. Akcja przeciwnika
             setTimeout(() => {
-                const opponentCard = CARD_DECK.find(c => c.type === 'atak');
-                if (opponentCard && Math.abs(playerPos - opponentPos) === 1) {
+                const opponentCard = CARD_DECK.filter(c => c.category === 'atak')[0];
+                if (opponentCard && Math.abs(playerPos - opponentPos) <= 1) {
                     const pushDirection = Math.sign(playerPos - opponentPos);
                     let pushDistance = opponent.currentStats.sila + (opponentCard.power || 0);
                     
-                    // Zdolność gracza (Unik La Raty)
-                    if (player.name === 'La Rata' && Math.random() < 0.5) { // Uproszczone: 50% szans na unik
+                    if (player.name === 'La Rata' && Math.random() < 0.5) { 
                         gameStatusEl.innerText = `Przeciwnik atakuje, ale La Rata unika!`;
                         renderBoard();
                         setTimeout(startPlayerTurn, 1000);
                         return;
                     }
-                    // Zdolność gracza (Madre Montaña)
                     if (player.name === 'Madre Montaña') {
                         pushDistance = Math.min(pushDistance, 1);
                     }
-
                     const newPlayerPos = playerPos + pushDistance * pushDirection;
                     
                     if (newPlayerPos >= 0 && newPlayerPos < BOARD_SIZE) {
@@ -527,9 +586,8 @@
                         gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
                     } else {
                         if (player.name === 'El Fantasma' && Math.random() < 0.5) {
-                            // Uproszczona zdolność El Fantasma
                             gameStatusEl.innerText = `El Fantasma wraca do ringu!`;
-                            playerPos = 12; // Wracasz do środka ringu
+                            playerPos = 12; 
                             boardState[playerPos] = player;
                         } else {
                             endGame(opponent);
@@ -550,7 +608,6 @@
             playerMoved = false;
             gameStatusEl.innerText = "Twoja kolej! Wykonaj ruch. Zasięg: " + player.currentStats.ruch;
             highlightMovementCells();
-            finisherBtn.classList.remove('hidden');
         }
 
         function endGame(winner) {
@@ -578,6 +635,7 @@
             startBtn.disabled = true;
             startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
             startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+            finisherUsed = false;
         }
 
         characterCards.forEach(card => {
@@ -603,7 +661,6 @@
         });
 
         restartBtn.addEventListener('click', restartGame);
-        finisherBtn.addEventListener('click', useFinisher);
 
         ringGridEl.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -615,8 +672,16 @@
                 const targetX = targetPos % BOARD_WIDTH;
                 const targetY = Math.floor(targetPos / BOARD_WIDTH);
                 const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
+                const isDiagonal = Math.abs(currentX - targetX) === Math.abs(currentY - targetY) && distance !== 0;
 
-                if (distance <= player.currentStats.ruch && boardState[targetPos] === null) {
+                let validMove = false;
+                if (boardState[playerPos].name === 'El Jaguar' && isDiagonal && distance <= player.currentStats.ruch * 2) {
+                    validMove = true;
+                } else if (distance <= player.currentStats.ruch) {
+                    validMove = true;
+                }
+                
+                if (validMove && boardState[targetPos] === null) {
                     targetCell.classList.add('cell-highlight');
                 }
             }
@@ -643,20 +708,39 @@
                 const targetX = targetPos % BOARD_WIDTH;
                 const targetY = Math.floor(targetPos / BOARD_WIDTH);
                 const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
-                
+                const isDiagonal = Math.abs(currentX - targetX) === Math.abs(currentY - targetY) && distance !== 0;
+
                 let validMove = false;
-                if (boardState[playerPos] && boardState[playerPos].name === 'El Jaguar') {
-                    const dx = Math.abs(currentX - targetX);
-                    const dy = Math.abs(currentY - targetY);
-                    if (dx === dy && dx <= player.currentStats.ruch && boardState[targetPos] === null) {
-                        validMove = true;
-                    }
+                if (boardState[playerPos].name === 'El Jaguar' && isDiagonal && distance <= player.currentStats.ruch * 2) {
+                    validMove = true;
+                } else if (distance <= player.currentStats.ruch) {
+                    validMove = true;
                 }
                 
-                if (distance <= player.currentStats.ruch && boardState[targetPos] === null || validMove) {
+                if (validMove && boardState[targetPos] === null) {
                     boardState[playerPos] = null;
-                    playerPos = targetPos;
-                    boardState[playerPos] = player;
+                    
+                    const cellContent = boardState[targetPos];
+                    if (cellContent && cellContent.type === 'trap' && cellContent.symbol === '🍌') {
+                        // Efekt banana
+                        let directions = [-BOARD_WIDTH, BOARD_WIDTH, -1, 1];
+                        let randomDir = directions[Math.floor(Math.random() * directions.length)];
+                        let newPos = targetPos + randomDir;
+                        
+                        if (newPos >= 0 && newPos < BOARD_SIZE && boardState[newPos] === null) {
+                            playerPos = newPos;
+                            boardState[newPos] = player;
+                            gameStatusEl.innerText = "Wpadłeś na banana! Poślizgnąłeś się!";
+                        } else {
+                            playerPos = targetPos;
+                            boardState[targetPos] = player;
+                            gameStatusEl.innerText = "Wpadłeś na banana, ale uniknąłeś wypadku!";
+                        }
+                        boardState[targetPos] = null; // Banan znika
+                    } else {
+                        playerPos = targetPos;
+                        boardState[playerPos] = player;
+                    }
                     
                     renderBoard();
                     document.querySelectorAll('.ring-cell').forEach(cell => cell.classList.remove('cell-highlight'));
@@ -664,10 +748,6 @@
                     playerMoved = true;
                     gameStatusEl.innerText = "Wykonano ruch. Teraz wybierz kartę, aby wykonać akcję!";
                     drawActionCards();
-                    if (player.finisherUses > 0) {
-                        finisherBtn.disabled = false;
-                        finisherBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
                 } else {
                     gameStatusEl.innerText = "Nie możesz się tam ruszyć. Wybierz inne pole w zasięgu.";
                 }
