@@ -261,7 +261,7 @@
             </div>
         </section>
 
-        <section id="end-game-container" class="py-12 hidden text-center">
+        <section id="end-game-container" class="py-12 hidden">
             <h2 id="end-game-title" class="text-5xl font-bold mb-4 text-yellow-400"></h2>
             <p id="end-game-message" class="text-xl text-gray-300"></p>
             <button id="restart-btn" class="mt-6 bg-yellow-400 text-gray-900 font-bold py-3 px-6 rounded-full text-lg hover:bg-yellow-500 transition-colors">
@@ -301,7 +301,7 @@
     <script>
         const CHARACTERS = [
             { id: 1, name: "El Jaguar", symbol: "🐆", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Agile Leap", finisher: "Skok Jaguara" },
-            { id: 2, name: "Big Toro", symbol: "🐂", stats: { ruch: 2, sila: 3, obrona: 3 }, ability: "Ciężar Byka", finisher: "Bycze Rogi" },
+            { id: 2, name: "Big Toro", symbol: "�", stats: { ruch: 2, sila: 3, obrona: 3 }, ability: "Ciężar Byka", finisher: "Bycze Rogi" },
             { id: 3, name: "La Rata", symbol: "🐀", stats: { ruch: 4, sila: 1, obrona: 2 }, ability: "Unik", finisher: "Niewidzialny Gryz" },
             { id: 4, name: "Señor Sombrero", symbol: "🎩", stats: { ruch: 3, sila: 2, obrona: 1 }, ability: "Publiczność go kocha", finisher: "Sombrero Slam" },
             { id: 5, name: "Madre Montaña", symbol: "🏔️", stats: { ruch: 2, sila: 3, obrona: 4 }, ability: "Ściana", finisher: "Mountain Crush" },
@@ -400,7 +400,7 @@
         const gameSummaryModal = document.getElementById('game-summary-modal');
         const gameLogDisplayEl = document.getElementById('game-log-display');
         const closeSummaryBtn = document.getElementById('close-summary-btn');
-        const downloadLogBtn = document.getElementById('download-log-btn'); // Nowy przycisk
+        const downloadLogBtn = document.getElementById('download-log-btn');
 
         const COMMENTARY = {
             start: ["¡Vamos a la lucha!", "Niech zacznie się walka!", "Publiczność szaleje!", "Oto początek prawdziwej masakry!"],
@@ -735,7 +735,7 @@
                 boardState[pushedPos] = null;
                 playerPositions[pushed.id] = newPushedPos;
                 boardState[newPushedPos] = pushed;
-                commentary += `<p>${getCommentary('push')} <strong>${pushed.name}</strong> został wypchnięty o ${movedDistance} pola!</p ट्रॉपिकल>`;
+                commentary += `<p>${getCommentary('push')} <strong>${pushed.name}</strong> został wypchnięty o ${movedDistance} pola!</p>`;
                 logEvent({
                     type: 'push_resolved',
                     pusher: pusher.name,
@@ -818,7 +818,7 @@
                  commentary += `<p>${getCommentary('chaos')} <strong>${player.name}</strong> wywołuje chaos na planszy!</p>`;
                  updateEnthusiasm(card.enthusiasm);
             } else if (card.category === 'provocation') {
-                commentary += `<p><strong>${player.name}</strong> próbuje ożywić publikę!</p>`;
+                commentary += `<p><strong>${player.name}</strong> próbuje ożywić publikę!</p ट्रॉपिकल>`;
                 updateEnthusiasm(card.enthusiasm);
             } else {
                 commentary += `<p>Nie doszło do bezpośredniego starcia. Gracze przygotowują się do następnej rundy.</p>`;
@@ -1062,11 +1062,15 @@
                 gameLogDisplayEl.appendChild(entry);
             });
             gameSummaryModal.classList.remove('hidden');
+            gameSummaryModal.style.display = 'flex'; // Upewnij się, że jest widoczny jako flex container
         }
 
         function endGame(winner) {
             gameContainer.classList.add('hidden');
+            gameContainer.style.display = 'none'; // Jawnie ukryj
             endGameContainer.classList.remove('hidden');
+            endGameContainer.style.display = 'block'; // Jawnie pokaż
+
             if (winner) {
                 endGameTitleEl.innerText = "Zwycięstwo!";
                 endGameMessageEl.innerText = `Gratulacje! Wygrał ${winner.name}!`;
@@ -1086,19 +1090,32 @@
         }
 
         function restartGame() {
-            gameSummaryModal.classList.add('hidden'); // Ukryj modal podsumowania gry
-            endGameContainer.classList.add('hidden'); // Ukryj kontener zakończenia gry
-            characterSelectionContainer.classList.remove('hidden'); // Pokaż kontener wyboru postaci
+            // Ukryj wszystkie modalne okna i ekrany gry
+            gameSummaryModal.classList.add('hidden');
+            gameSummaryModal.style.display = 'none';
+
+            endGameContainer.classList.add('hidden');
+            endGameContainer.style.display = 'none';
+            
+            gameContainer.classList.add('hidden');
+            gameContainer.style.display = 'none';
+
+            // Pokaż kontener wyboru postaci
+            characterSelectionContainer.classList.remove('hidden');
+            characterSelectionContainer.style.display = 'block'; // Element <main> domyślnie jest blokowy
             
             // Resetuj wszystkie zmienne stanu gry
             players = [];
             playerPositions = {};
             ringGridEl.innerHTML = '';
             document.querySelectorAll('.character-card').forEach(card => card.classList.remove('selected'));
+            
+            // Zresetuj stan przycisków startu
             startBtn.disabled = true;
             startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
             startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
-            aiVsAIBtn.disabled = true; // Zresetuj przycisk AI vs AI
+            
+            aiVsAIBtn.disabled = true;
             aiVsAIBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
             aiVsAIBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
 
@@ -1107,6 +1124,8 @@
             isAIVsAI = false;
             updateEnthusiasm(0); // Zresetuj pasek entuzjazmu
             turnNumber = 1; // Zresetuj numer tury
+
+            console.log("restartGame: Gra zresetowana, pokazano ekran wyboru postaci.");
         }
 
         function updateButtons() {
@@ -1149,7 +1168,9 @@
             if (selectedCount >= 2 && selectedCount <= 4) {
                 isAIVsAI = false;
                 characterSelectionContainer.classList.add('hidden');
+                characterSelectionContainer.style.display = 'none'; // Jawnie ukryj
                 gameContainer.classList.remove('hidden');
+                gameContainer.style.display = 'block'; // Jawnie pokaż
                 initializeGame();
             }
         });
@@ -1159,7 +1180,9 @@
             if (selectedCount >= 2 && selectedCount <= 4) {
                 isAIVsAI = true;
                 characterSelectionContainer.classList.add('hidden');
+                characterSelectionContainer.style.display = 'none'; // Jawnie ukryj
                 gameContainer.classList.remove('hidden');
+                gameContainer.style.display = 'block'; // Jawnie pokaż
                 initializeGame();
             }
         });
@@ -1168,7 +1191,7 @@
         nextTurnBtn.addEventListener('click', () => {
             hideSummary();
         });
-        closeSummaryBtn.addEventListener('click', restartGame); // Zmiana tutaj: wywołaj restartGame
+        closeSummaryBtn.addEventListener('click', restartGame); // Wywołuje restartGame
         downloadLogBtn.addEventListener('click', downloadLogFile);
 
         ringGridEl.addEventListener('dragover', (e) => {
@@ -1305,3 +1328,4 @@
     </script>
 </body>
 </html>
+�
