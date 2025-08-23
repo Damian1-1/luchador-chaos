@@ -300,6 +300,7 @@
         let currentMovementCard = null;
         let playerCardPlayed = null;
         let opponentCardPlayed = null;
+        let turnInProgress = false;
 
         const characterCards = document.querySelectorAll('.character-card');
         const startBtn = document.getElementById('start-btn');
@@ -365,7 +366,7 @@
             player = CHARACTERS.find(c => c.name === characterName);
             
             const availableOpponents = CHARACTERS.filter(c => c.name !== player.name);
-            opponent = { ...availableOpponents[Math.floor(Math.random() * availableOpponents.length)] };
+            opponent = { ...availableOpponents[Math.random() * availableOpponents.length | 0] };
 
             player.currentStats = { ...player.stats };
             opponent.currentStats = { ...opponent.stats };
@@ -469,7 +470,9 @@
                     <p class="text-xs mt-2">${card.description}</p>
                 `;
                 cardEl.addEventListener('click', () => {
-                    useCard(card);
+                    if (!turnInProgress) {
+                        useCard(card);
+                    }
                 });
                 playerHandEl.appendChild(cardEl);
             });
@@ -503,11 +506,28 @@
                 }
             }
         }
+        
+        function calculatePushDirection(pusherPos, pushedPos) {
+            const pusherX = pusherPos % BOARD_WIDTH;
+            const pusherY = Math.floor(pusherPos / BOARD_WIDTH);
+            const pushedX = pushedPos % BOARD_WIDTH;
+            const pushedY = Math.floor(pushedPos / BOARD_WIDTH);
+            
+            let dirX = 0;
+            let dirY = 0;
+            
+            if (pushedX > pusherX) dirX = 1;
+            if (pushedX < pusherX) dirX = -1;
+            if (pushedY > pusherY) dirY = 1;
+            if (pushedY < pusherY) dirY = -1;
+            
+            return { dirX, dirY };
+        }
 
         function useCard(card) {
+            turnInProgress = true;
             playerCardPlayed = card;
             playerHandContainer.classList.add('hidden');
-            let enthusiasmChange = card.enthusiasm || 0;
             let commentary = `<p class="text-white text-xl font-bold">${getCommentary('start')}</p><br>`;
             
             if (card.category === 'ruch' && !playerMoved) {
@@ -516,6 +536,7 @@
                 gameStatusEl.innerText = `Wybrałeś kartę ruchu: ${card.name}! Przeciągnij swojego zawodnika.`;
                 highlightMovementCells(card.power, card.name === 'Unik', card.name === 'Skok');
                 playerMoved = true;
+                turnInProgress = false;
                 return;
             }
 
@@ -523,7 +544,7 @@
             
             // Faza akcji w ciemno - symulacja
             const opponentCards = CARD_DECK.filter(c => c.category === 'atak' || c.category === 'obrona' || c.category === 'chaos');
-            opponentCardPlayed = opponentCards[Math.floor(Math.random() * opponentCards.length)];
+            opponentCardPlayed = opponentCards[Math.random() * opponentCards.length | 0];
 
             // Faza rozstrzygnięcia
             
@@ -551,17 +572,27 @@
                     const pushResult = attackPower - defensePower;
                     if (pushResult > 0) {
                          const pushDistance = pushResult;
-                         const newOpponentPos = opponentPos + pushDistance;
-                         if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
-                            boardState[opponentPos] = null;
-                            opponentPos = newOpponentPos;
-                            boardState[opponentPos] = opponent;
-                            commentary += `<p>${getCommentary('push')} <strong>${player.name}</strong> wypycha <strong>${opponent.name}</strong> o ${pushDistance} pola!</p>`;
-                            updateEnthusiasm(3);
-                         } else {
-                            endGame(player);
-                            commentary += `<p>${getCommentary('fall')} <strong>${opponent.name}</strong> wypada poza ring! Zwycięstwo!</p>`;
+                         const { dirX, dirY } = calculatePushDirection(playerPos, opponentPos);
+                         
+                         let newOpponentPos = opponentPos;
+                         for (let i = 0; i < pushDistance; i++) {
+                             const nextPos = newOpponentPos + dirX + (dirY * BOARD_WIDTH);
+                             if (nextPos >= 0 && nextPos < BOARD_SIZE) {
+                                 newOpponentPos = nextPos;
+                             } else {
+                                 endGame(player);
+                                 commentary += `<p>${getCommentary('fall')} <strong>${opponent.name}</strong> wypada poza ring! Zwycięstwo!</p>`;
+                                 turnInProgress = false;
+                                 return;
+                             }
                          }
+                         
+                         boardState[opponentPos] = null;
+                         opponentPos = newOpponentPos;
+                         boardState[opponentPos] = opponent;
+                         
+                         commentary += `<p>${getCommentary('push')} <strong>${player.name}</strong> wypycha <strong>${opponent.name}</strong> o ${pushDistance} pola!</p>`;
+                         updateEnthusiasm(3);
                     } else {
                         commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
                         updateEnthusiasm(1);
@@ -581,17 +612,27 @@
                     const pushResult = attackPower - defensePower;
                     if (pushResult > 0) {
                          const pushDistance = pushResult;
-                         const newPlayerPos = playerPos - pushDistance;
-                         if (newPlayerPos >= 0 && newPlayerPos < BOARD_SIZE) {
-                            boardState[playerPos] = null;
-                            playerPos = newPlayerPos;
-                            boardState[playerPos] = player;
-                            commentary += `<p>${getCommentary('push')} <strong>${opponent.name}</strong> wypycha <strong>${player.name}</strong> o ${pushDistance} pola!</p>`;
-                            updateEnthusiasm(3);
-                         } else {
-                             endGame(opponent);
-                             commentary += `<p>${getCommentary('fall')} <strong>${player.name}</strong> wypada poza ring! Porażka!</p>`;
+                         const { dirX, dirY } = calculatePushDirection(opponentPos, playerPos);
+                         
+                         let newPlayerPos = playerPos;
+                         for (let i = 0; i < pushDistance; i++) {
+                             const nextPos = newPlayerPos + dirX + (dirY * BOARD_WIDTH);
+                             if (nextPos >= 0 && nextPos < BOARD_SIZE) {
+                                 newPlayerPos = nextPos;
+                             } else {
+                                 endGame(opponent);
+                                 commentary += `<p>${getCommentary('fall')} <strong>${player.name}</strong> wypada poza ring! Porażka!</p>`;
+                                 turnInProgress = false;
+                                 return;
+                             }
                          }
+                         
+                         boardState[playerPos] = null;
+                         playerPos = newPlayerPos;
+                         boardState[playerPos] = player;
+                         
+                         commentary += `<p>${getCommentary('push')} <strong>${opponent.name}</strong> wypycha <strong>${player.name}</strong> o ${pushDistance} pola!</p>`;
+                         updateEnthusiasm(3);
                     } else {
                         commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
                         updateEnthusiasm(1);
@@ -604,29 +645,46 @@
                 renderBoard();
                 
                 showSummary(commentary);
+                turnInProgress = false;
             }, 1000);
         }
 
         function useFinisher() {
+            if (turnInProgress) return;
+            turnInProgress = true;
+            
             playerCardPlayed = CARD_DECK.find(c => c.name === 'Finisher Ready!');
             gameStatusEl.innerText = `${player.name} używa swojego finishera: ${player.finisher}!`;
             updateEnthusiasm(4);
             finisherUsed = true;
             
-            const pushDirection = Math.sign(opponentPos - playerPos);
-            const newOpponentPos = opponentPos + 3 * pushDirection;
-            if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE) {
-                boardState[opponentPos] = null;
-                opponentPos = newOpponentPos;
-                boardState[opponentPos] = opponent;
-            } else {
-                endGame(player);
+            const { dirX, dirY } = calculatePushDirection(playerPos, opponentPos);
+            let newOpponentPos = opponentPos;
+            for (let i = 0; i < 3; i++) {
+                 const nextPos = newOpponentPos + dirX + (dirY * BOARD_WIDTH);
+                 if (nextPos >= 0 && nextPos < BOARD_SIZE) {
+                     newOpponentPos = nextPos;
+                 } else {
+                     endGame(player);
+                     return;
+                 }
             }
+            
+            boardState[opponentPos] = null;
+            opponentPos = newOpponentPos;
+            boardState[opponentPos] = opponent;
+            
             renderBoard();
-            setTimeout(opponentTurn, 2000);
+            setTimeout(() => {
+                turnInProgress = false;
+                opponentTurn();
+            }, 2000);
         }
 
         function opponentTurn() {
+             if (turnInProgress) return;
+             turnInProgress = true;
+             
              playerMoved = false;
              playerUsedCard = false;
              isPlayerTurn = false;
@@ -650,7 +708,7 @@
                  
                  // Symulacja ruchu i akcji przeciwnika
                  const moveCards = CARD_DECK.filter(c => c.category === 'ruch');
-                 const opponentMoveCard = moveCards[Math.floor(Math.random() * moveCards.length)];
+                 const opponentMoveCard = moveCards[Math.random() * moveCards.length | 0];
                  const dx = Math.sign((playerPos % BOARD_WIDTH) - (opponentPos % BOARD_WIDTH));
                  const dy = Math.sign(Math.floor(playerPos / BOARD_WIDTH) - Math.floor(opponentPos / BOARD_WIDTH));
                  let newOpponentPos = opponentPos;
@@ -676,7 +734,7 @@
                  // Symulacja akcji przeciwnika
                  if (Math.abs(playerPos - opponentPos) <= 1) {
                      const attackCards = CARD_DECK.filter(c => c.category === 'atak');
-                     const opponentAttackCard = attackCards[Math.floor(Math.random() * attackCards.length)];
+                     const opponentAttackCard = attackCards[Math.random() * attackCards.length | 0];
 
                      const attackPower = opponent.currentStats.sila + (opponentAttackCard.power || 0);
                      let defensePower = player.currentStats.obrona;
@@ -686,17 +744,27 @@
                      
                      if (attackPower > defensePower) {
                          const pushDistance = attackPower - defensePower;
-                         const newPlayerPos = playerPos - pushDistance;
-                         if (newPlayerPos >= 0 && newPlayerPos < BOARD_SIZE) {
-                            boardState[playerPos] = null;
-                            playerPos = newPlayerPos;
-                            boardState[playerPos] = player;
-                            commentary += `<p>${getCommentary('push')} <strong>${opponent.name}</strong> wypycha <strong>${player.name}</strong> o ${pushDistance} pola!</p>`;
-                            updateEnthusiasm(3);
-                         } else {
-                             endGame(opponent);
-                             commentary += `<p>${getCommentary('fall')} <strong>${player.name}</strong> wypada poza ring! Koniec walki!</p>`;
+                         const { dirX, dirY } = calculatePushDirection(opponentPos, playerPos);
+                         
+                         let newPlayerPos = playerPos;
+                         for (let i = 0; i < pushDistance; i++) {
+                             const nextPos = newPlayerPos + dirX + (dirY * BOARD_WIDTH);
+                             if (nextPos >= 0 && nextPos < BOARD_SIZE) {
+                                 newPlayerPos = nextPos;
+                             } else {
+                                 endGame(opponent);
+                                 commentary += `<p>${getCommentary('fall')} <strong>${player.name}</strong> wypada poza ring! Koniec walki!</p>`;
+                                 turnInProgress = false;
+                                 return;
+                             }
                          }
+                         
+                         boardState[playerPos] = null;
+                         playerPos = newPlayerPos;
+                         boardState[playerPos] = player;
+                         
+                         commentary += `<p>${getCommentary('push')} <strong>${opponent.name}</strong> wypycha <strong>${player.name}</strong> o ${pushDistance} pola!</p>`;
+                         updateEnthusiasm(3);
                      } else {
                          commentary += `<p><strong>${player.name}</strong> obronił się! To był imponujący blok.</p>`;
                          updateEnthusiasm(1);
@@ -707,7 +775,7 @@
                  
                  renderBoard();
                  showSummary(commentary);
-
+                 turnInProgress = false;
              }, 1000);
         }
 
@@ -778,7 +846,11 @@
         restartBtn.addEventListener('click', restartGame);
         nextTurnBtn.addEventListener('click', () => {
             hideSummary();
-            isPlayerTurn ? startPlayerTurn() : opponentTurn();
+            if (isPlayerTurn) {
+                opponentTurn();
+            } else {
+                startPlayerTurn();
+            }
         });
 
         ringGridEl.addEventListener('dragover', (e) => {
@@ -850,7 +922,7 @@
                     const cellContent = boardState[targetPos];
                     if (cellContent && cellContent.type === 'trap' && cellContent.symbol === '🍌') {
                         let directions = [-BOARD_WIDTH, BOARD_WIDTH, -1, 1];
-                        let randomDir = directions[Math.floor(Math.random() * directions.length)];
+                        let randomDir = directions[Math.random() * directions.length | 0];
                         let newPos = targetPos + randomDir;
                         
                         if (newPos >= 0 && newPos < BOARD_SIZE && boardState[newPos] === null) {
