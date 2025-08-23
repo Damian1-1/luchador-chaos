@@ -735,7 +735,7 @@
                 boardState[pushedPos] = null;
                 playerPositions[pushed.id] = newPushedPos;
                 boardState[newPushedPos] = pushed;
-                commentary += `<p>${getCommentary('push')} <strong>${pushed.name}</strong> został wypchnięty o ${movedDistance} pola!</p>`;
+                commentary += `<p>${getCommentary('push')} <strong>${pushed.name}</strong> został wypchnięty o ${movedDistance} pola!</p ट्रॉपिकल>`;
                 logEvent({
                     type: 'push_resolved',
                     pusher: pusher.name,
@@ -983,8 +983,9 @@
                 } else if (log.type === 'player_setup') {
                     entry += `Zawodnicy: ${log.players.map(p => p.name).join(', ')}.`;
                 } else if (log.type === 'initial_setup') {
-                    const boardItems = log.board_items.map(item => `${item.name} na pozycji ${item.pos}`).join(', ');
-                    entry += `Plansza przygotowana z obiektami: ${boardItems}. Pozycje graczy: ${Object.entries(log.player_positions).map(([id, pos]) => `${players.find(p => p.id == id).name} na ${pos}`).join(', ')}.`;
+                    const boardItems = log.board_items.map(item => `${item.name || item.type} na pozycji ${item.pos}`).join(', ');
+                    const playerPositionsFormatted = Object.entries(log.player_positions).map(([id, pos]) => `${players.find(p => p.id == id)?.name || 'Nieznany'} na ${pos}`).join(', ');
+                    entry += `Plansza przygotowana z obiektami: ${boardItems}. Pozycje graczy: ${playerPositionsFormatted}.`;
                 } else if (log.type === 'player_action') {
                     const player = players.find(p => p.name === log.player);
                     entry += `${log.player} (id: ${player.id}) używa karty ${log.card_played}.`;
@@ -1085,10 +1086,11 @@
         }
 
         function restartGame() {
-            gameSummaryModal.classList.add('hidden');
-            endGameContainer.classList.add('hidden');
-            characterSelectionContainer.classList.remove('hidden');
+            gameSummaryModal.classList.add('hidden'); // Ukryj modal podsumowania gry
+            endGameContainer.classList.add('hidden'); // Ukryj kontener zakończenia gry
+            characterSelectionContainer.classList.remove('hidden'); // Pokaż kontener wyboru postaci
             
+            // Resetuj wszystkie zmienne stanu gry
             players = [];
             playerPositions = {};
             ringGridEl.innerHTML = '';
@@ -1096,10 +1098,15 @@
             startBtn.disabled = true;
             startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
             startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+            aiVsAIBtn.disabled = true; // Zresetuj przycisk AI vs AI
+            aiVsAIBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+            aiVsAIBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+
             finisherUsed = false;
             enthusiasm = 5;
             isAIVsAI = false;
-            updateEnthusiasm(0);
+            updateEnthusiasm(0); // Zresetuj pasek entuzjazmu
+            turnNumber = 1; // Zresetuj numer tury
         }
 
         function updateButtons() {
@@ -1161,10 +1168,8 @@
         nextTurnBtn.addEventListener('click', () => {
             hideSummary();
         });
-        closeSummaryBtn.addEventListener('click', () => {
-            gameSummaryModal.classList.add('hidden');
-        });
-        downloadLogBtn.addEventListener('click', downloadLogFile); // Obsługa nowego przycisku
+        closeSummaryBtn.addEventListener('click', restartGame); // Zmiana tutaj: wywołaj restartGame
+        downloadLogBtn.addEventListener('click', downloadLogFile);
 
         ringGridEl.addEventListener('dragover', (e) => {
             e.preventDefault();
