@@ -52,7 +52,7 @@
             box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
         }
         .cell-highlight {
-            background-color: rgba(250, 204, 21, 0.3); /* podświetlenie pola docelowego */
+            background-color: rgba(250, 204, 21, 0.3);
         }
         .player-token {
             cursor: grab;
@@ -160,11 +160,9 @@
         ];
 
         const CARD_DECK = [
-            { type: 'atak', name: 'Szybki Cios', power: 1, move: 1, reqs: { s: 2 } },
-            { type: 'ruch', name: 'Drobny Skok', power: 0, move: 1, reqs: { z: 2 } },
-            { type: 'obrona', name: 'Drobny Blok', power: 0, move: 0, reqs: { w: 2 } },
-            { type: 'atak', name: 'Mocne Wypchnięcie', power: 2, move: 2, reqs: { s: 3 } },
-            { type: 'ruch', name: 'Długi Krok', power: 0, move: 2, reqs: { z: 3 } },
+            { type: 'atak', name: 'Mocne Wypchnięcie', power: 2, reqs: { s: 3 } },
+            { type: 'obrona', name: 'Drobny Blok', power: 0, reqs: { w: 2 } },
+            { type: 'atak', name: 'Szybki Cios', power: 1, reqs: { s: 2 } },
         ];
 
         const ITEMS = [
@@ -182,7 +180,8 @@
         let playerPos = null;
         let opponentPos = null;
         let boardState = [];
-        let currentPlayerCard = null;
+        let isPlayerTurn = true;
+        let playerMoved = false;
 
         // Elementy DOM
         const characterCards = document.querySelectorAll('.character-card');
@@ -225,7 +224,7 @@
             }
 
             // Losowe pozycje startowe dla graczy
-            const startPositions = [0, 4, 20, 24]; // Rogi planszy
+            const startPositions = [0, 4, 20, 24];
             const [pos1, pos2] = startPositions.sort(() => Math.random() - 0.5).slice(0, 2);
             playerPos = pos1;
             opponentPos = pos2;
@@ -245,18 +244,10 @@
                 boardState[randomPos] = randomItem;
             }
 
-            // Render planszy
             renderBoard();
-
-            // Ustaw symbole i statystyki
-            playerSymbolEl.innerText = player.symbol;
-            opponentSymbolEl.innerText = opponent.symbol;
             updateStatsDisplay();
 
-            gameStatusEl.innerText = `Rozpoczynasz walkę jako ${player.name} przeciwko ${opponent.name}! Wybierz kartę, aby rozpocząć turę.`;
-            
-            // Dobierz karty
-            drawHand();
+            gameStatusEl.innerText = `Twoja kolej! Wykonaj ruch. Zasięg: ${player.currentStats.z}`;
         }
 
         function renderBoard() {
@@ -271,19 +262,6 @@
                     if (boardState[i] === player) {
                         span.className += ' player-token';
                         span.draggable = true;
-                        span.addEventListener('dragstart', (e) => {
-                            if (currentPlayerCard && currentPlayerCard.type === 'ruch') {
-                                e.dataTransfer.setData('text/plain', playerPos);
-                                setTimeout(() => {
-                                    e.target.style.opacity = '0.5';
-                                }, 0);
-                            } else {
-                                e.preventDefault(); // Uniemożliwia przeciąganie bez wybranej karty ruchu
-                            }
-                        });
-                        span.addEventListener('dragend', (e) => {
-                            e.target.style.opacity = '1';
-                        });
                     }
                     cell.appendChild(span);
                 }
@@ -298,48 +276,40 @@
 
         function drawHand() {
             playerHandEl.innerHTML = '';
-            CARD_DECK.forEach(card => {
-                const cardEl = document.createElement('div');
-                cardEl.className = 'card bg-gray-700 p-4 rounded-lg text-center';
-                cardEl.innerHTML = `
-                    <h4 class="font-bold">${card.name}</h4>
-                    <p class="text-sm text-gray-400">(${card.type})</p>
-                    <p class="text-xs mt-2">Siła: ${card.power}, Ruch: ${card.move}</p>
-                `;
-                cardEl.addEventListener('click', () => {
-                    currentPlayerCard = card;
-                    gameStatusEl.innerText = `Wybrałeś kartę ${card.name}. Wykonaj akcję na planszy!`;
-                    highlightCells(card);
-                });
-                playerHandEl.appendChild(cardEl);
-            });
+            const card = CARD_DECK[Math.floor(Math.random() * CARD_DECK.length)];
+            const cardEl = document.createElement('div');
+            cardEl.className = 'card bg-gray-700 p-4 rounded-lg text-center';
+            cardEl.innerHTML = `
+                <h4 class="font-bold">${card.name}</h4>
+                <p class="text-sm text-gray-400">(${card.type})</p>
+            `;
+            cardEl.addEventListener('click', () => useCard(card));
+            playerHandEl.appendChild(cardEl);
         }
-        
-        function highlightCells(card) {
-            // Usuń poprzednie podświetlenia
-            document.querySelectorAll('.ring-cell').forEach(cell => cell.classList.remove('cell-highlight'));
+
+        function highlightMovementCells() {
+            const cells = document.querySelectorAll('.ring-cell');
+            cells.forEach(cell => cell.classList.remove('cell-highlight'));
             
-            if (card.type === 'ruch') {
-                const currentX = playerPos % BOARD_WIDTH;
-                const currentY = Math.floor(playerPos / BOARD_WIDTH);
+            const currentX = playerPos % BOARD_WIDTH;
+            const currentY = Math.floor(playerPos / BOARD_WIDTH);
+            
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                const targetX = i % BOARD_WIDTH;
+                const targetY = Math.floor(i / BOARD_WIDTH);
+                const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
                 
-                for (let i = 0; i < BOARD_SIZE; i++) {
-                    const targetX = i % BOARD_WIDTH;
-                    const targetY = Math.floor(i / BOARD_WIDTH);
-                    const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
-                    
-                    if (distance <= card.move && boardState[i] === null) {
-                        document.getElementById(`cell-${i}`).classList.add('cell-highlight');
-                    }
+                if (distance <= player.currentStats.z && boardState[i] === null) {
+                    document.getElementById(`cell-${i}`).classList.add('cell-highlight');
                 }
             }
         }
 
-        function playCard(card) {
-            // Tura gracza
+        function useCard(card) {
+            // Logika użycia karty
             if (card.type === 'atak') {
                 const distance = Math.abs(playerPos - opponentPos);
-                if (distance <= card.move) {
+                if (distance === 1) {
                     const pushDirection = Math.sign(opponentPos - playerPos);
                     const newOpponentPos = opponentPos + (player.currentStats.s * pushDirection);
                     
@@ -349,56 +319,70 @@
                         boardState[opponentPos] = opponent;
                         gameStatusEl.innerText = `Używasz ${card.name}! Przeciwnik przesuwa się!`;
                     } else {
-                        endGame(player); // Wypchnięcie poza ring
+                        endGame(player);
                     }
                 } else {
-                    gameStatusEl.innerText = "Karta ataku jest poza zasięgiem. Wybierz inną kartę.";
+                    gameStatusEl.innerText = "Karta ataku wymaga, abyś stał obok przeciwnika.";
                 }
+            } else if (card.type === 'obrona') {
+                 player.currentStats.w += card.value || 1; // Zwiększenie wytrzymałości, jeśli karta ma wartość
+                 updateStatsDisplay();
+                 gameStatusEl.innerText = `Używasz ${card.name}. Twoja wytrzymałość wzrasta!`;
+            }
+
+            // Koniec tury, czyszczenie ręki
+            playerHandEl.innerHTML = '';
+
+            setTimeout(opponentTurn, 1000);
+        }
+
+        function opponentTurn() {
+            gameStatusEl.innerText = "Tura przeciwnika...";
+
+            // 1. Ruch przeciwnika (uproszczona logika)
+            let newOpponentPos = opponentPos;
+            const targetPos = playerPos;
+            const dx = Math.sign((targetPos % BOARD_WIDTH) - (opponentPos % BOARD_WIDTH));
+            const dy = Math.sign(Math.floor(targetPos / BOARD_WIDTH) - Math.floor(opponentPos / BOARD_WIDTH));
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+                newOpponentPos = opponentPos + dx;
+            } else {
+                newOpponentPos = opponentPos + (dy * BOARD_WIDTH);
             }
             
-            renderBoard();
-            currentPlayerCard = null; // Zakończ turę gracza
+            if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE && boardState[newOpponentPos] === null) {
+                boardState[opponentPos] = null;
+                opponentPos = newOpponentPos;
+                boardState[opponentPos] = opponent;
+            }
 
-            // Tura przeciwnika
+            renderBoard();
+
+            // 2. Akcja przeciwnika
             setTimeout(() => {
                 const opponentCard = CARD_DECK[Math.floor(Math.random() * CARD_DECK.length)];
-                
-                if (opponentCard.type === 'atak') {
-                    const distance = Math.abs(playerPos - opponentPos);
-                    if (distance <= opponentCard.move) {
-                        const pushDirection = Math.sign(playerPos - opponentPos);
-                        const newPlayerPos = playerPos + (opponent.currentStats.s * pushDirection);
-                        
-                        if (newPlayerPos >= 0 && newPlayerPos < BOARD_SIZE && boardState[newPlayerPos] === null) {
-                            boardState[playerPos] = null;
-                            playerPos = newPlayerPos;
-                            boardState[playerPos] = player;
-                            gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
-                        } else {
-                            endGame(opponent);
-                        }
+                if (opponentCard.type === 'atak' && Math.abs(playerPos - opponentPos) === 1) {
+                    const pushDirection = Math.sign(playerPos - opponentPos);
+                    const newPlayerPos = playerPos + (opponent.currentStats.s * pushDirection);
+                    
+                    if (newPlayerPos >= 0 && newPlayerPos < BOARD_SIZE && boardState[newPlayerPos] === null) {
+                        boardState[playerPos] = null;
+                        playerPos = newPlayerPos;
+                        boardState[playerPos] = player;
+                        gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
                     } else {
-                        gameStatusEl.innerText = `Przeciwnik marnuje ruch.`;
+                        endGame(opponent);
                     }
-                } else if (opponentCard.type === 'ruch') {
-                     const moveDirection = Math.sign(Math.random() - 0.5); // Uproszczony ruch
-                     const newOpponentPos = opponentPos - (opponentCard.move * moveDirection);
-                     
-                     if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE && boardState[newOpponentPos] === null) {
-                         boardState[opponentPos] = null;
-                         opponentPos = newOpponentPos;
-                         boardState[opponentPos] = opponent;
-                         gameStatusEl.innerText = `Przeciwnik porusza się.`;
-                     } else {
-                         gameStatusEl.innerText = `Przeciwnik nie mógł się ruszyć, jest przy krawędzi ringu.`;
-                     }
+                } else {
+                    gameStatusEl.innerText = `Przeciwnik marnuje ruch lub kartę.`;
                 }
-                
-                renderBoard();
 
+                renderBoard();
+                
                 setTimeout(() => {
-                    gameStatusEl.innerText = "Twoja kolej! Wybierz kartę.";
-                    drawHand();
+                    gameStatusEl.innerText = "Twoja kolej! Wykonaj ruch.";
+                    highlightMovementCells();
                 }, 1000);
             }, 1000);
         }
@@ -424,7 +408,6 @@
             opponent = null;
             playerPos = null;
             opponentPos = null;
-            currentPlayerCard = null;
             ringGridEl.innerHTML = '';
             document.querySelectorAll('.character-card').forEach(card => card.classList.remove('selected'));
             startBtn.disabled = true;
@@ -454,19 +437,26 @@
                 gameContainer.classList.remove('hidden');
                 
                 initializeGame();
+                highlightMovementCells();
             }
         });
 
         restartBtn.addEventListener('click', restartGame);
-
+        
         // Dodanie logiki Drag and Drop
         ringGridEl.addEventListener('dragover', (e) => {
             e.preventDefault();
             const targetCell = e.target.closest('.ring-cell');
-            if (targetCell && currentPlayerCard && currentPlayerCard.type === 'ruch') {
+            if (targetCell) {
                 const targetPos = parseInt(targetCell.id.split('-')[1]);
-                if (boardState[targetPos] === null) {
-                    targetCell.classList.add('cell-highlight');
+                const currentX = playerPos % BOARD_WIDTH;
+                const currentY = Math.floor(playerPos / BOARD_WIDTH);
+                const targetX = targetPos % BOARD_WIDTH;
+                const targetY = Math.floor(targetPos / BOARD_WIDTH);
+                const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
+
+                if (distance <= player.currentStats.z && boardState[targetPos] === null) {
+                     targetCell.classList.add('cell-highlight');
                 }
             }
         });
@@ -482,7 +472,9 @@
         ringGridEl.addEventListener('drop', (e) => {
             e.preventDefault();
             const targetCell = e.target.closest('.ring-cell');
-            if (targetCell && currentPlayerCard && currentPlayerCard.type === 'ruch') {
+            if (!isPlayerTurn) return; // Zablokuj ruch w turze przeciwnika
+
+            if (targetCell) {
                 const targetPos = parseInt(targetCell.id.split('-')[1]);
                 
                 const currentX = playerPos % BOARD_WIDTH;
@@ -491,7 +483,7 @@
                 const targetY = Math.floor(targetPos / BOARD_WIDTH);
                 const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
 
-                if (distance <= currentPlayerCard.move && boardState[targetPos] === null) {
+                if (distance <= player.currentStats.z && boardState[targetPos] === null) {
                     // Wykonaj ruch
                     boardState[playerPos] = null;
                     
@@ -504,53 +496,34 @@
                     
                     playerPos = targetPos;
                     boardState[playerPos] = player;
-                    gameStatusEl.innerText = `Przesuwasz się używając ${currentPlayerCard.name}.`;
                     
                     renderBoard();
                     
-                    // Usuń podświetlenie i zakończ turę gracza
+                    // Usuń podświetlenie i przejdź do fazy akcji
                     document.querySelectorAll('.ring-cell').forEach(cell => cell.classList.remove('cell-highlight'));
-                    currentPlayerCard = null;
                     
-                    // Tura przeciwnika
-                    setTimeout(() => {
-                        // Logika tury przeciwnika
-                        const opponentCard = CARD_DECK[Math.floor(Math.random() * CARD_DECK.length)];
-                        
-                        // Uproszczona logika ataku przeciwnika
-                        if (opponentCard.type === 'atak' && Math.abs(playerPos - opponentPos) <= opponentCard.move) {
-                            const pushDirection = Math.sign(playerPos - opponentPos);
-                            const newPlayerPos = playerPos + (opponent.currentStats.s * pushDirection);
-                            
-                            if (newPlayerPos >= 0 && newPlayerPos < BOARD_SIZE && boardState[newPlayerPos] === null) {
-                                boardState[playerPos] = null;
-                                playerPos = newPlayerPos;
-                                boardState[playerPos] = player;
-                                gameStatusEl.innerText = `Przeciwnik atakuje! Przesuwasz się!`;
-                            } else {
-                                endGame(opponent);
-                            }
-                        } else if (opponentCard.type === 'ruch') {
-                            const newOpponentPos = opponentPos + (Math.sign(Math.random() - 0.5) * opponentCard.move);
-                            if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE && boardState[newOpponentPos] === null) {
-                                boardState[opponentPos] = null;
-                                opponentPos = newOpponentPos;
-                                boardState[opponentPos] = opponent;
-                                gameStatusEl.innerText = `Przeciwnik porusza się.`;
-                            }
-                        }
-                        
-                        renderBoard();
-                        setTimeout(() => {
-                            gameStatusEl.innerText = "Twoja kolej! Wybierz kartę.";
-                            drawHand();
-                        }, 1000);
-                    }, 1000);
+                    gameStatusEl.innerText = "Wykonano ruch. Teraz wybierz kartę, aby wykonać akcję!";
+                    drawHand();
                 } else {
                     gameStatusEl.innerText = "Nie możesz się tam ruszyć. Wybierz inne pole w zasięgu.";
                     targetCell.classList.remove('cell-highlight');
                 }
             }
+        });
+
+        ringGridEl.addEventListener('dragstart', (e) => {
+            if (isPlayerTurn) {
+                e.dataTransfer.setData('text/plain', playerPos);
+                setTimeout(() => {
+                    e.target.style.opacity = '0.5';
+                }, 0);
+            } else {
+                e.preventDefault();
+            }
+        });
+        
+        ringGridEl.addEventListener('dragend', (e) => {
+             e.target.style.opacity = '1';
         });
     </script>
 </body>
