@@ -102,7 +102,7 @@
         </header>
 
         <main class="py-12" id="character-selection-container">
-            <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Wybierz swojego zawodnika</h2>
+            <h2 class="text-4xl font-bold text-center mb-10 text-yellow-400">Wybierz zawodników (2-4)</h2>
             
             <div id="character-selection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 
@@ -196,9 +196,9 @@
                 </div>
 
                 <div class="mt-8 text-lg flex justify-around">
+                    <p>Twoja tura: <span id="current-player-name" class="font-bold text-yellow-400"></span></p>
                     <p>Twój symbol: <span id="player-symbol" class="font-bold text-yellow-400"></span></p>
                     <p>Twoje statystyki: R:<span id="player-r" class="font-bold text-yellow-400"></span> S:<span id="player-s" class="font-bold text-yellow-400"></span> O:<span id="player-o" class="font-bold text-yellow-400"></span></p>
-                    <p>Przeciwnik: <span id="opponent-symbol" class="font-bold text-red-500"></span></p>
                 </div>
 
                 <div id="player-hand-container" class="mt-8">
@@ -234,24 +234,22 @@
 
     <script>
         const CHARACTERS = [
-            { name: "El Jaguar", symbol: "🐆", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Agile Leap", finisher: "Skok Jaguara" },
-            { name: "Big Toro", symbol: "🐂", stats: { ruch: 2, sila: 3, obrona: 3 }, ability: "Ciężar Byka", finisher: "Bycze Rogi" },
-            { name: "La Rata", symbol: "🐀", stats: { ruch: 4, sila: 1, obrona: 2 }, ability: "Unik", finisher: "Niewidzialny Gryz" },
-            { name: "Señor Sombrero", symbol: "🎩", stats: { ruch: 3, sila: 2, obrona: 1 }, ability: "Publiczność go kocha", finisher: "Sombrero Slam" },
-            { name: "Madre Montaña", symbol: "🏔️", stats: { ruch: 2, sila: 3, obrona: 4 }, ability: "Ściana", finisher: "Mountain Crush" },
-            { name: "El Pollo Loco", symbol: "🐔", stats: { ruch: 4, sila: 1, obrona: 1 }, ability: "Chaotyczne Skrzydła", finisher: "Kurzy Rozbłysk" },
-            { name: "Señorita Fuego", symbol: "🔥", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Ogień Publiczności", finisher: "Płonący Kopniak" },
-            { name: "El Fantasma", symbol: "👻", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Nieuchwytny", finisher: "Widmowy Chwyt" }
+            { id: 1, name: "El Jaguar", symbol: "🐆", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Agile Leap", finisher: "Skok Jaguara" },
+            { id: 2, name: "Big Toro", symbol: "🐂", stats: { ruch: 2, sila: 3, obrona: 3 }, ability: "Ciężar Byka", finisher: "Bycze Rogi" },
+            { id: 3, name: "La Rata", symbol: "🐀", stats: { ruch: 4, sila: 1, obrona: 2 }, ability: "Unik", finisher: "Niewidzialny Gryz" },
+            { id: 4, name: "Señor Sombrero", symbol: "🎩", stats: { ruch: 3, sila: 2, obrona: 1 }, ability: "Publiczność go kocha", finisher: "Sombrero Slam" },
+            { id: 5, name: "Madre Montaña", symbol: "🏔️", stats: { ruch: 2, sila: 3, obrona: 4 }, ability: "Ściana", finisher: "Mountain Crush" },
+            { id: 6, name: "El Pollo Loco", symbol: "🐔", stats: { ruch: 4, sila: 1, obrona: 1 }, ability: "Chaotyczne Skrzydła", finisher: "Kurzy Rozbłysk" },
+            { id: 7, name: "Señorita Fuego", symbol: "🔥", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Ogień Publiczności", finisher: "Płonący Kopniak" },
+            { id: 8, name: "El Fantasma", symbol: "👻", stats: { ruch: 3, sila: 2, obrona: 2 }, ability: "Nieuchwytny", finisher: "Widmowy Chwyt" }
         ];
 
         const CARD_DECK = [
-            // Ruch
             { category: 'ruch', name: 'Krok Naprzód', power: 1, description: "Przesuwasz się o 1 pole.", enthusiasm: 1 },
             { category: 'ruch', name: 'Bieg', power: 2, description: "Przesuwasz się o 2 pola w linii prostej.", enthusiasm: 1 },
             { category: 'ruch', name: 'Skok', power: 2, description: "Przeskakujesz nad 1 polem (np. przeciwnikiem).", enthusiasm: 2 },
             { category: 'ruch', name: 'Unik', power: 1, description: "Przesuwasz się o 1 pole w bok (nawet jeśli ktoś atakuje).", enthusiasm: 1},
 
-            // Atak
             { category: 'atak', name: 'Pchnięcie', power: 1, description: "Wypychasz przeciwnika o 1 pole.", enthusiasm: 1 },
             { category: 'atak', name: 'Super Pchnięcie', power: 2, description: "Wypychasz przeciwnika o 2 pola.", enthusiasm: 2 },
             { category: 'atak', name: 'Cios Pięścią', power: 0, effect: 'discard', description: "Przeciwnik traci 1 kartę z ręki.", enthusiasm: 1 },
@@ -259,17 +257,14 @@
             { category: 'atak', name: 'Rzut z Liny', power: 1, description: "Odbijasz się od liny i wykonujesz ruch +1 pole oraz atak.", enthusiasm: 2},
             { category: 'atak', name: 'Rzut z Nawisu', power: 1, description: "Przeciwnik wypada razem z tobą... ale on zostaje wyeliminowany, a ty wracasz.", enthusiasm: 3},
 
-            // Obrona
             { category: 'obrona', name: 'Blok', defense: 1, description: "Anulujesz jedno wypchnięcie.", enthusiasm: 0 },
             { category: 'obrona', name: 'Kontra', defense: -1, effect: 'counter', description: "Przesuwasz atakującego o 1 pole zamiast siebie.", enthusiasm: 1 },
             { category: 'obrona', name: 'Trzymanie się Liny', defense: 1, description: "Jeśli miałbyś wypaść, zostajesz na linie.", enthusiasm: 1},
 
-            // Chaos
             { category: 'chaos', name: 'Rzut Krzesłem', effect: 'chair', description: "Wybierasz cel w zasięgu 2 pól; traci kartę lub cofa się o 1.", enthusiasm: 2 },
             { category: 'chaos', name: 'Banana Slip', effect: 'banana', description: "Kładziesz znacznik 'banan' na planszy. Pierwszy, kto wejdzie, ślizga się o 1 pole.", enthusiasm: 2 },
             { category: 'chaos', name: 'Sędzia Nie Patrzy', effect: 'judge_blind', description: "Możesz zrobić dodatkowe wypchnięcie, którego nie da się zablokować.", enthusiasm: 3},
 
-            // Super
             { category: 'super', name: 'Podwójny Atak', power: 2, description: "Wykonujesz dwa różne ataki w tej samej turze.", enthusiasm: 3 },
             { category: 'super', name: 'Zmiana Pozycji', effect: 'swap', description: "Zamieniasz się miejscem z dowolnym graczem w zasięgu 3 pól.", enthusiasm: 3 },
             { category: 'super', name: 'Finisher Ready!', effect: 'finisher', description: "Możesz zagrać swój ruch kończący.", enthusiasm: 4 }
@@ -287,12 +282,10 @@
             'banana': { type: 'trap', symbol: '🍌' }
         };
 
-        let player = null;
-        let opponent = null;
-        let playerPos = null;
-        let opponentPos = null;
+        let players = [];
+        let playerPositions = {};
+        let currentPlayerIndex = 0;
         let boardState = [];
-        let isPlayerTurn = true;
         let playerMoved = false;
         let playerUsedCard = false;
         let finisherUsed = false;
@@ -308,8 +301,8 @@
         const characterSelectionContainer = document.getElementById('character-selection-container');
         const gameContainer = document.getElementById('game-container');
         const gameStatusEl = document.getElementById('game-status');
+        const currentPlayerNameEl = document.getElementById('current-player-name');
         const playerSymbolEl = document.getElementById('player-symbol');
-        const opponentSymbolEl = document.getElementById('opponent-symbol');
         const playerStatsEl = {
             ruch: document.getElementById('player-r'),
             sila: document.getElementById('player-s'),
@@ -379,21 +372,35 @@
             gameLog = [];
             logEvent({ type: 'game_start', timestamp: new Date() });
 
-            const selectedCharacterEl = document.querySelector('.character-card.selected');
-            const characterName = selectedCharacterEl.getAttribute('data-character');
-            player = CHARACTERS.find(c => c.name === characterName);
+            players = [];
+            playerPositions = {};
+            const selectedCharacterElements = document.querySelectorAll('.character-card.selected');
+            const selectedCharacterNames = Array.from(selectedCharacterElements).map(el => el.getAttribute('data-character'));
+
+            let availableCharacters = [...CHARACTERS];
             
-            const availableOpponents = CHARACTERS.filter(c => c.name !== player.name);
-            opponent = { ...availableOpponents[Math.random() * availableOpponents.length | 0] };
-            
-            logEvent({
-                type: 'player_selection',
-                player: player.name,
-                opponent: opponent.name
+            selectedCharacterNames.forEach(name => {
+                const playerCharacter = availableCharacters.find(c => c.name === name);
+                players.push({ ...playerCharacter, type: 'human' });
+                availableCharacters = availableCharacters.filter(c => c.name !== name);
             });
 
-            player.currentStats = { ...player.stats };
-            opponent.currentStats = { ...opponent.stats };
+            while (players.length < 4) {
+                if (availableCharacters.length > 0) {
+                    const opponentCharacter = availableCharacters[Math.random() * availableCharacters.length | 0];
+                    players.push({ ...opponentCharacter, type: 'ai' });
+                    availableCharacters = availableCharacters.filter(c => c.name !== opponentCharacter.name);
+                } else {
+                    break;
+                }
+            }
+
+            players.forEach(p => p.currentStats = { ...p.stats });
+
+            logEvent({
+                type: 'player_setup',
+                players: players.map(p => ({ name: p.name, type: p.type }))
+            });
 
             ringGridEl.innerHTML = '';
             boardState = new Array(BOARD_SIZE).fill(null);
@@ -421,30 +428,25 @@
             document.getElementById('cell-18').classList.add('chair');
 
             let freePositions = [...Array(BOARD_SIZE).keys()].filter(pos => !boardState[pos]);
-            const [pos1, pos2] = freePositions.sort(() => Math.random() - 0.5).slice(0, 2);
-            playerPos = pos1;
-            opponentPos = pos2;
-
-            boardState[playerPos] = player;
-            boardState[opponentPos] = opponent;
+            freePositions.sort(() => Math.random() - 0.5);
+            
+            players.forEach((p, index) => {
+                const pos = freePositions[index];
+                playerPositions[p.id] = pos;
+                boardState[pos] = p;
+            });
 
             logEvent({
                 type: 'initial_setup',
-                player_pos: playerPos,
-                opponent_pos: opponentPos,
+                player_positions: playerPositions,
                 board_items: boardState.map((item, index) => item ? { type: item.type, pos: index } : null).filter(Boolean)
             });
 
             renderBoard();
-            updateStatsDisplay();
-            playerHandContainer.classList.add('hidden');
-            isPlayerTurn = true;
-            playerMoved = false;
-            playerUsedCard = false;
-            finisherUsed = false;
             enthusiasm = 5;
             updateEnthusiasm(0);
-            startPlayerTurn();
+            currentPlayerIndex = 0;
+            startTurn();
         }
 
         function renderBoard() {
@@ -456,10 +458,10 @@
                     const span = document.createElement('span');
                     span.innerText = content;
                     span.className = 'transition-transform duration-500 transform';
-                    if (boardState[i] === player) {
+                    if (boardState[i].type === 'human') {
                         span.className += ' player-token';
                         span.draggable = true;
-                    } else if (boardState[i] === opponent) {
+                    } else if (boardState[i].type === 'ai') {
                         span.className += ' opponent-token';
                     }
                     cell.appendChild(span);
@@ -467,10 +469,13 @@
             }
         }
 
-        function updateStatsDisplay() {
-            playerStatsEl.ruch.innerText = player.currentStats.ruch;
-            playerStatsEl.sila.innerText = player.currentStats.sila;
-            playerStatsEl.obrona.innerText = player.currentStats.obrona;
+        function updatePlayerInfoDisplay() {
+            const currentPlayer = players[currentPlayerIndex];
+            currentPlayerNameEl.innerText = currentPlayer.name;
+            playerSymbolEl.innerText = currentPlayer.symbol;
+            playerStatsEl.ruch.innerText = currentPlayer.currentStats.ruch;
+            playerStatsEl.sila.innerText = currentPlayer.currentStats.sila;
+            playerStatsEl.obrona.innerText = currentPlayer.currentStats.obrona;
         }
 
         function drawActionCards(category) {
@@ -486,7 +491,7 @@
             } else if (enthusiasm >= 5 && enthusiasm <= 7) {
                 cardsToDrawCount = cardsToDrawCount + 1;
             }
-            if (player.name === 'Señor Sombrero' && enthusiasm >= 7) {
+            if (players[currentPlayerIndex].name === 'Señor Sombrero' && enthusiasm >= 7) {
                 cardsToDrawCount += 1;
             }
 
@@ -509,7 +514,7 @@
             });
             logEvent({
                 type: 'draw_cards',
-                player: player.name,
+                player: players[currentPlayerIndex].name,
                 cards_drawn: cardsToDraw.map(c => c.name)
             });
         }
@@ -518,13 +523,13 @@
             const cells = document.querySelectorAll('.ring-cell');
             cells.forEach(cell => cell.classList.remove('cell-highlight'));
             
-            const currentX = playerPos % BOARD_WIDTH;
-            const currentY = Math.floor(playerPos / BOARD_WIDTH);
+            const currentPlayerPos = playerPositions[players[currentPlayerIndex].id];
+            const currentX = currentPlayerPos % BOARD_WIDTH;
+            const currentY = Math.floor(currentPlayerPos / BOARD_WIDTH);
             
             for (let i = 0; i < BOARD_SIZE; i++) {
                 const targetX = i % BOARD_WIDTH;
                 const targetY = Math.floor(i / BOARD_WIDTH);
-                const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
                 const straightDistance = Math.max(Math.abs(currentX - targetX), Math.abs(currentY - targetY));
                 
                 let validMove = false;
@@ -562,8 +567,8 @@
         
         function resolvePush(pusher, pushed, pushDistance) {
             let commentary = '';
-            const pusherPos = (pusher === player) ? playerPos : opponentPos;
-            const pushedPos = (pushed === player) ? playerPos : opponentPos;
+            const pusherPos = playerPositions[pusher.id];
+            const pushedPos = playerPositions[pushed.id];
             
             const { dirX, dirY } = calculatePushDirection(pusherPos, pushedPos);
             
@@ -576,7 +581,7 @@
                 const nextX = nextPos % BOARD_WIDTH;
                 const nextY = Math.floor(nextPos / BOARD_WIDTH);
                 
-                if (nextX >= 0 && nextX < BOARD_WIDTH && nextY >= 0 && nextY < BOARD_WIDTH) {
+                if (nextX >= 0 && nextX < BOARD_WIDTH && nextY >= 0 && nextY < BOARD_WIDTH && boardState[nextPos] === null) {
                     newPushedPos = nextPos;
                     movedDistance++;
                 } else {
@@ -587,11 +592,7 @@
             
             if (movedDistance > 0) {
                 boardState[pushedPos] = null;
-                if (pushed === player) {
-                    playerPos = newPushedPos;
-                } else {
-                    opponentPos = newPushedPos;
-                }
+                playerPositions[pushed.id] = newPushedPos;
                 boardState[newPushedPos] = pushed;
                 commentary += `<p>${getCommentary('push')} <strong>${pushed.name}</strong> został wypchnięty o ${movedDistance} pola!</p>`;
                 logEvent({
@@ -611,10 +612,12 @@
             return commentary;
         }
 
-        function useCard(card) {
+        function useCard(card, player = players[currentPlayerIndex]) {
             turnInProgress = true;
             playerCardPlayed = card;
-            playerHandContainer.classList.add('hidden');
+            if (player.type === 'human') {
+                playerHandContainer.classList.add('hidden');
+            }
             let commentary = `<p class="text-white text-xl font-bold">${getCommentary('start')}</p><br>`;
             
             logEvent({
@@ -625,9 +628,11 @@
             
             if (card.category === 'ruch' && !playerMoved) {
                 currentMovementCard = card;
-                handTitleEl.innerText = 'Przeciągnij zawodnika na wybrane pole:';
-                gameStatusEl.innerText = `Wybrałeś kartę ruchu: ${card.name}! Przeciągnij swojego zawodnika.`;
-                highlightMovementCells(card.power, card.name === 'Unik', card.name === 'Skok');
+                if (player.type === 'human') {
+                    handTitleEl.innerText = 'Przeciągnij zawodnika na wybrane pole:';
+                    gameStatusEl.innerText = `Wybrałeś kartę ruchu: ${card.name}! Przeciągnij swojego zawodnika.`;
+                    highlightMovementCells(card.power, card.name === 'Unik', card.name === 'Skok');
+                }
                 playerMoved = true;
                 turnInProgress = false;
                 return;
@@ -635,77 +640,46 @@
 
             playerUsedCard = true;
             
-            const opponentCards = CARD_DECK.filter(c => c.category === 'atak' || c.category === 'obrona' || c.category === 'chaos');
-            opponentCardPlayed = opponentCards[Math.random() * opponentCards.length | 0];
+            const opponents = players.filter(p => p.id !== player.id);
+            const target = opponents[Math.random() * opponents.length | 0];
 
-            logEvent({
-                type: 'ai_action_blind',
-                opponent: opponent.name,
-                card_selected: opponentCardPlayed.name
-            });
-
-            setTimeout(() => {
-                if (playerCardPlayed.category === 'atak' && Math.abs(playerPos - opponentPos) <= 1) {
-                    const attackPower = playerCardPlayed.power + player.currentStats.sila;
-                    let defensePower = 0;
-                    if (opponentCardPlayed.category === 'obrona') {
-                        defensePower = opponentCardPlayed.defense + opponent.currentStats.obrona;
-                    }
-                    
-                    commentary += `<p>${getCommentary('attack')} <strong>${player.name}</strong> uderza z siłą ${attackPower}!</p>`;
-                    if (defensePower > 0) {
-                        commentary += `<p>${getCommentary('defense')} <strong>${opponent.name}</strong> broni się z siłą ${defensePower}!</p>`;
-                    }
-                    
-                    const pushResult = attackPower - defensePower;
-                    if (pushResult > 0) {
-                         commentary += resolvePush(player, opponent, pushResult);
-                    } else {
-                        commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
-                        updateEnthusiasm(1);
-                    }
-                } else if (opponentCardPlayed.category === 'atak' && Math.abs(playerPos - opponentPos) <= 1) {
-                    const attackPower = opponentCardPlayed.power + opponent.currentStats.sila;
-                    let defensePower = 0;
-                    if (playerCardPlayed.category === 'obrona') {
-                        defensePower = playerCardPlayed.defense + player.currentStats.obrona;
-                    }
-                    
-                    commentary += `<p>${getCommentary('attack')} <strong>${opponent.name}</strong> uderza z siłą ${attackPower}!</p>`;
-                    if (defensePower > 0) {
-                        commentary += `<p>${getCommentary('defense')} <strong>${player.name}</strong> broni się z siłą ${defensePower}!</p>`;
-                    }
-
-                    const pushResult = attackPower - defensePower;
-                    if (pushResult > 0) {
-                         commentary += resolvePush(opponent, player, pushResult);
-                    } else {
-                        commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
-                        updateEnthusiasm(1);
-                    }
-
-                } else if (playerCardPlayed.category === 'chaos') {
-                    commentary += `<p>${getCommentary('chaos')} <strong>${player.name}</strong> wywołuje chaos na planszy!</p>`;
-                } else {
-                    commentary += `<p>Nie doszło do bezpośredniego starcia. Gracze przygotowują się do następnej rundy.</p>`;
-                }
+            if (card.category === 'atak') {
+                const attackPower = card.power + player.currentStats.sila;
+                const defenseCard = CARD_DECK.filter(c => c.category === 'obrona')[Math.random() * CARD_DECK.filter(c => c.category === 'obrona').length | 0];
+                const defensePower = (defenseCard.defense || 0) + target.currentStats.obrona;
                 
-                renderBoard();
-                showSummary(commentary);
-                turnInProgress = false;
-            }, 1000);
+                commentary += `<p>${getCommentary('attack')} <strong>${player.name}</strong> atakuje <strong>${target.name}</strong> z siłą ${attackPower}!</p>`;
+                commentary += `<p><strong>${target.name}</strong> broni się z siłą ${defensePower}!</p>`;
+                
+                const pushResult = attackPower - defensePower;
+                if (pushResult > 0) {
+                     commentary += resolvePush(player, target, pushResult);
+                } else {
+                    commentary += `<p>Walka zakończona remisem! Nikt się nie przesunął.</p>`;
+                    updateEnthusiasm(1);
+                }
+            } else if (card.category === 'chaos') {
+                 commentary += `<p>${getCommentary('chaos')} <strong>${player.name}</strong> wywołuje chaos na planszy!</p>`;
+            } else {
+                commentary += `<p>Nie doszło do bezpośredniego starcia. Gracze przygotowują się do następnej rundy.</p>`;
+            }
+            
+            renderBoard();
+            showSummary(commentary);
+            turnInProgress = false;
         }
 
-        function useFinisher() {
+        function useFinisher(player) {
             if (turnInProgress) return;
             turnInProgress = true;
             
-            playerCardPlayed = CARD_DECK.find(c => c.name === 'Finisher Ready!');
+            const opponents = players.filter(p => p.id !== player.id);
+            const target = opponents[Math.random() * opponents.length | 0];
+            
             gameStatusEl.innerText = `${player.name} używa swojego finishera: ${player.finisher}!`;
             updateEnthusiasm(4);
-            finisherUsed = true;
             
-            const commentary = resolvePush(player, opponent, 3);
+            const commentary = resolvePush(player, target, 3);
             
             renderBoard();
             setTimeout(() => {
@@ -714,81 +688,70 @@
             }, 2000);
         }
 
-        function opponentTurn() {
+        function aiTurn() {
              if (turnInProgress) return;
              turnInProgress = true;
              
              playerMoved = false;
              playerUsedCard = false;
-             isPlayerTurn = false;
-             handTitleEl.innerText = "Tura przeciwnika...";
-             gameStatusEl.innerText = "Przeciwnik planuje swój ruch...";
-             playerHandEl.innerHTML = '';
-             playerHandContainer.classList.remove('hidden');
-             
-             const fakeCard = {name: '...', category: '...', description: 'Przeciwnik ukrywa swoje karty.'};
-             const fakeCardEl = document.createElement('div');
-             fakeCardEl.className = 'card bg-gray-700 p-4 rounded-lg text-center';
-             fakeCardEl.innerHTML = `
-                <h4 class="font-bold">${fakeCard.name}</h4>
-                <p class="text-sm text-gray-400">(${fakeCard.category})</p>
-                <p class="text-xs mt-2">${fakeCard.description}</p>
-             `;
-             playerHandEl.appendChild(fakeCardEl);
+             const currentPlayer = players[currentPlayerIndex];
 
              setTimeout(() => {
-                 gameStatusEl.innerText = "Przeciwnik wykonał ruch i akcję. Czas na podsumowanie!";
+                 let commentary = `<p class="text-white text-xl font-bold">Tura <strong>${currentPlayer.name}</strong></p><br>`;
                  
                  const moveCards = CARD_DECK.filter(c => c.category === 'ruch');
-                 const opponentMoveCard = moveCards[Math.random() * moveCards.length | 0];
-                 const dx = Math.sign((playerPos % BOARD_WIDTH) - (opponentPos % BOARD_WIDTH));
-                 const dy = Math.sign(Math.floor(playerPos / BOARD_WIDTH) - Math.floor(opponentPos / BOARD_WIDTH));
-                 let newOpponentPos = opponentPos;
+                 const aiMoveCard = moveCards[Math.random() * moveCards.length | 0];
+                 
+                 const humanPlayers = players.filter(p => p.type === 'human');
+                 const targetHuman = humanPlayers[Math.random() * humanPlayers.length | 0];
+
+                 const dx = Math.sign((playerPositions[targetHuman.id] % BOARD_WIDTH) - (playerPositions[currentPlayer.id] % BOARD_WIDTH));
+                 const dy = Math.sign(Math.floor(playerPositions[targetHuman.id] / BOARD_WIDTH) - Math.floor(playerPositions[currentPlayer.id] / BOARD_WIDTH));
+                 let newPos = playerPositions[currentPlayer.id];
 
                  if (dx !== 0) {
-                     newOpponentPos = opponentPos + dx;
+                     newPos = playerPositions[currentPlayer.id] + dx;
                  } else if (dy !== 0) {
-                     newOpponentPos = opponentPos + (dy * BOARD_WIDTH);
+                     newPos = playerPositions[currentPlayer.id] + (dy * BOARD_WIDTH);
                  }
 
-                 let commentary = `<p class="text-white text-xl font-bold">${getCommentary('start')}</p><br>`;
-                 
                  logEvent({
-                     type: 'ai_turn',
-                     opponent: opponent.name,
-                     move_card_selected: opponentMoveCard.name,
-                     start_pos: opponentPos
+                     type: 'ai_turn_move',
+                     player: currentPlayer.name,
+                     card_selected: aiMoveCard.name,
+                     start_pos: playerPositions[currentPlayer.id],
+                     target_pos: newPos
                  });
 
-                 if (newOpponentPos >= 0 && newOpponentPos < BOARD_SIZE && boardState[newOpponentPos] === null) {
-                    boardState[opponentPos] = null;
-                    opponentPos = newOpponentPos;
-                    boardState[opponentPos] = opponent;
-                    commentary += `<p><strong>${opponent.name}</strong> porusza się, używając karty ruchu: <strong>${opponentMoveCard.name}</strong>. Wypada na 1 pole.</p>`;
-                    updateEnthusiasm(opponentMoveCard.enthusiasm);
+                 if (newPos >= 0 && newPos < BOARD_SIZE && boardState[newPos] === null) {
+                    boardState[playerPositions[currentPlayer.id]] = null;
+                    playerPositions[currentPlayer.id] = newPos;
+                    boardState[newPos] = currentPlayer;
+                    commentary += `<p><strong>${currentPlayer.name}</strong> porusza się, używając karty ruchu: <strong>${aiMoveCard.name}</strong>.</p>`;
+                    updateEnthusiasm(aiMoveCard.enthusiasm);
                  } else {
-                     commentary += `<p><strong>${opponent.name}</strong> nie mógł się ruszyć.</p>`;
+                     commentary += `<p><strong>${currentPlayer.name}</strong> nie mógł się ruszyć.</p>`;
                  }
                  
-                 if (Math.abs(playerPos - opponentPos) <= 1) {
+                 if (Math.abs(playerPositions[currentPlayer.id] - playerPositions[targetHuman.id]) <= 1) {
                      const attackCards = CARD_DECK.filter(c => c.category === 'atak');
-                     const opponentAttackCard = attackCards[Math.random() * attackCards.length | 0];
+                     const aiAttackCard = attackCards[Math.random() * attackCards.length | 0];
 
-                     const attackPower = opponent.currentStats.sila + (opponentAttackCard.power || 0);
-                     let defensePower = player.currentStats.obrona;
+                     const attackPower = currentPlayer.currentStats.sila + (aiAttackCard.power || 0);
+                     let defensePower = targetHuman.currentStats.obrona;
                      
-                     commentary += `<p>${getCommentary('attack')} <strong>${opponent.name}</strong> uderza z siłą ${attackPower}!</p>`;
-                     commentary += `<p><strong>${player.name}</strong> próbuje się bronić! </p>`;
+                     commentary += `<p>${getCommentary('attack')} <strong>${currentPlayer.name}</strong> uderza z siłą ${attackPower}!</p>`;
+                     commentary += `<p><strong>${targetHuman.name}</strong> próbuje się bronić! </p>`;
                      
                      if (attackPower > defensePower) {
                          const pushResult = attackPower - defensePower;
-                         commentary += resolvePush(opponent, player, pushResult);
+                         commentary += resolvePush(currentPlayer, targetHuman, pushResult);
                      } else {
-                         commentary += `<p><strong>${player.name}</strong> obronił się! To był imponujący blok.</p>`;
+                         commentary += `<p><strong>${targetHuman.name}</strong> obronił się! To był imponujący blok.</p>`;
                          updateEnthusiasm(1);
                      }
                  } else {
-                     commentary += `<p><strong>${opponent.name}</strong> czeka na dogodny moment do ataku.</p>`;
+                     commentary += `<p><strong>${currentPlayer.name}</strong> czeka na dogodny moment do ataku.</p>`;
                  }
                  
                  renderBoard();
@@ -797,32 +760,46 @@
              }, 1000);
         }
 
-        function startPlayerTurn() {
-            isPlayerTurn = true;
-            playerMoved = false;
-            playerUsedCard = false;
-            handTitleEl.innerText = "Wybierz kartę ruchu:";
-            gameStatusEl.innerText = "Twoja kolej! Wybierz kartę ruchu.";
-            drawActionCards('ruch');
+        function startTurn() {
+            const currentPlayer = players[currentPlayerIndex];
+            updatePlayerInfoDisplay();
+
+            if (currentPlayer.type === 'human') {
+                playerMoved = false;
+                playerUsedCard = false;
+                handTitleEl.innerText = "Wybierz kartę ruchu:";
+                gameStatusEl.innerText = `Twoja kolej, ${currentPlayer.name}! Wybierz kartę ruchu.`;
+                drawActionCards('ruch');
+                playerHandContainer.classList.remove('hidden');
+            } else {
+                playerHandContainer.classList.add('hidden');
+                gameStatusEl.innerText = `Tura zawodnika: ${currentPlayer.name}`;
+                aiTurn();
+            }
 
             if (enthusiasm >= 8) {
                 gameStatusEl.innerText += "\n¡Publika szaleje! Zdarzenie w trakcie rozwoju.";
             }
         }
 
+        function nextTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            startTurn();
+        }
+
         function endGame(winner) {
             gameContainer.classList.add('hidden');
             endGameContainer.classList.remove('hidden');
-            if (winner === player) {
+            if (winner) {
                 endGameTitleEl.innerText = "Zwycięstwo!";
-                endGameMessageEl.innerText = `Gratulacje! Wygrałeś walkę jako ${player.name}!`;
+                endGameMessageEl.innerText = `Gratulacje! Wygrałeś walkę jako ${winner.name}!`;
             } else {
-                endGameTitleEl.innerText = "Porażka!";
-                endGameMessageEl.innerText = `Niestety, przegrałeś. ${opponent.name} okazał się lepszy.`;
+                endGameTitleEl.innerText = "Koniec Walki!";
+                endGameMessageEl.innerText = `Wszyscy wypadli poza ring!`;
             }
             logEvent({
                 type: 'game_end',
-                winner: winner.name,
+                winner: winner ? winner.name : 'none',
                 reason: 'knockout'
             });
             console.log("Pełny log rozgrywki:", gameLog);
@@ -832,10 +809,8 @@
             endGameContainer.classList.add('hidden');
             characterSelectionContainer.classList.remove('hidden');
             
-            player = null;
-            opponent = null;
-            playerPos = null;
-            opponentPos = null;
+            players = [];
+            playerPositions = {};
             ringGridEl.innerHTML = '';
             document.querySelectorAll('.character-card').forEach(card => card.classList.remove('selected'));
             startBtn.disabled = true;
@@ -848,18 +823,31 @@
 
         characterCards.forEach(card => {
             card.addEventListener('click', () => {
-                document.querySelectorAll('.character-card').forEach(c => c.classList.remove('selected'));
-                card.classList.add('selected');
+                const selectedCount = document.querySelectorAll('.character-card.selected').length;
+                if (card.classList.contains('selected')) {
+                    card.classList.remove('selected');
+                } else {
+                    if (selectedCount < 4) {
+                        card.classList.add('selected');
+                    }
+                }
                 
-                startBtn.disabled = false;
-                startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
-                startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
+                const newSelectedCount = document.querySelectorAll('.character-card.selected').length;
+                if (newSelectedCount >= 2 && newSelectedCount <= 4) {
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                    startBtn.classList.add('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
+                } else {
+                    startBtn.disabled = true;
+                    startBtn.classList.remove('bg-yellow-400', 'text-gray-900', 'hover:bg-yellow-500');
+                    startBtn.classList.add('bg-gray-700', 'text-gray-400', 'opacity-50', 'cursor-not-allowed');
+                }
             });
         });
 
         startBtn.addEventListener('click', () => {
-            const selectedCharacterEl = document.querySelector('.character-card.selected');
-            if (selectedCharacterEl) {
+            const selectedCount = document.querySelectorAll('.character-card.selected').length;
+            if (selectedCount >= 2 && selectedCount <= 4) {
                 characterSelectionContainer.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
                 
@@ -870,23 +858,21 @@
         restartBtn.addEventListener('click', restartGame);
         nextTurnBtn.addEventListener('click', () => {
             hideSummary();
-            if (isPlayerTurn) {
-                opponentTurn();
-            } else {
-                startPlayerTurn();
-            }
+            nextTurn();
         });
 
         ringGridEl.addEventListener('dragover', (e) => {
             e.preventDefault();
             const targetCell = e.target.closest('.ring-cell');
-            if (targetCell && isPlayerTurn && !playerUsedCard) {
+            const currentPlayer = players[currentPlayerIndex];
+
+            if (targetCell && currentPlayer.type === 'human' && !playerUsedCard) {
                 const targetPos = parseInt(targetCell.id.split('-')[1]);
-                const currentX = playerPos % BOARD_WIDTH;
-                const currentY = Math.floor(playerPos / BOARD_WIDTH);
+                const currentPlayerPos = playerPositions[currentPlayer.id];
+                const currentX = currentPlayerPos % BOARD_WIDTH;
+                const currentY = Math.floor(currentPlayerPos / BOARD_WIDTH);
                 const targetX = targetPos % BOARD_WIDTH;
                 const targetY = Math.floor(targetPos / BOARD_WIDTH);
-                const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
                 const straightDistance = Math.max(Math.abs(currentX - targetX), Math.abs(currentY - targetY));
 
                 let validMove = false;
@@ -917,16 +903,16 @@
         ringGridEl.addEventListener('drop', (e) => {
             e.preventDefault();
             const targetCell = e.target.closest('.ring-cell');
-            if (!isPlayerTurn || playerUsedCard) return;
+            const currentPlayer = players[currentPlayerIndex];
+            if (currentPlayer.type !== 'human' || playerUsedCard) return;
 
             if (targetCell) {
                 const targetPos = parseInt(targetCell.id.split('-')[1]);
-                
-                const currentX = playerPos % BOARD_WIDTH;
-                const currentY = Math.floor(playerPos / BOARD_WIDTH);
+                const currentPlayerPos = playerPositions[currentPlayer.id];
+                const currentX = currentPlayerPos % BOARD_WIDTH;
+                const currentY = Math.floor(currentPlayerPos / BOARD_WIDTH);
                 const targetX = targetPos % BOARD_WIDTH;
                 const targetY = Math.floor(targetPos / BOARD_WIDTH);
-                const distance = Math.abs(currentX - targetX) + Math.abs(currentY - targetY);
                 const straightDistance = Math.max(Math.abs(currentX - targetX), Math.abs(currentY - targetY));
 
                 let validMove = false;
@@ -941,7 +927,7 @@
                 }
 
                 if (validMove && boardState[targetPos] === null) {
-                    boardState[playerPos] = null;
+                    boardState[currentPlayerPos] = null;
                     
                     const cellContent = boardState[targetPos];
                     if (cellContent && cellContent.type === 'trap' && cellContent.symbol === '🍌') {
@@ -950,27 +936,27 @@
                         let newPos = targetPos + randomDir;
                         
                         if (newPos >= 0 && newPos < BOARD_SIZE && boardState[newPos] === null) {
-                            playerPos = newPos;
-                            boardState[newPos] = player;
+                            playerPositions[currentPlayer.id] = newPos;
+                            boardState[newPos] = currentPlayer;
                             gameStatusEl.innerText = "Wpadłeś na banana! Poślizgnąłeś się!";
                             updateEnthusiasm(2);
                             logEvent({
                                 type: 'trap_effect',
-                                player: player.name,
+                                player: currentPlayer.name,
                                 trap: 'Banana Slip',
                                 old_pos: targetPos,
                                 new_pos: newPos
                             });
                         } else {
-                            playerPos = targetPos;
-                            boardState[targetPos] = player;
+                            playerPositions[currentPlayer.id] = targetPos;
+                            boardState[targetPos] = currentPlayer;
                             gameStatusEl.innerText = "Wpadłeś na banana, ale uniknąłeś wypadku!";
                              updateEnthusiasm(1);
                         }
                         boardState[targetPos] = null;
                     } else {
-                        playerPos = targetPos;
-                        boardState[playerPos] = player;
+                        playerPositions[currentPlayer.id] = targetPos;
+                        boardState[playerPositions[currentPlayer.id]] = currentPlayer;
                          updateEnthusiasm(currentMovementCard.enthusiasm);
                     }
                     
@@ -990,8 +976,9 @@
         });
 
         ringGridEl.addEventListener('dragstart', (e) => {
-            if (isPlayerTurn && !playerUsedCard) {
-                e.dataTransfer.setData('text/plain', playerPos);
+            const currentPlayer = players[currentPlayerIndex];
+            if (currentPlayer.type === 'human' && !playerUsedCard) {
+                e.dataTransfer.setData('text/plain', playerPositions[currentPlayer.id]);
                 setTimeout(() => { e.target.style.opacity = '0.5'; }, 0);
             } else {
                 e.preventDefault();
